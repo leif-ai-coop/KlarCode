@@ -234,7 +234,7 @@ const ResultsTable = ({
             <Typography variant="caption">Direkt eingegebener Code</Typography>
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <Chip color="info" variant="outlined" size="small" sx={{ mr: 1 }} label="Beispiel +" />
+            <Chip color="info" variant="outlined" size="small" sx={{ mr: 1 }} label="Beispiel" />
             <Typography variant="caption">Automatisch ergänzter Untercode</Typography>
           </Box>
         </Box>
@@ -319,20 +319,20 @@ const ResultsTable = ({
                 }}
               >
                 <TableCell component="th" scope="row">
-                  <Chip 
-                    label={row.kode} 
-                    color={
-                      row.isExpandedChild ? 'info' :
-                      'primary'
-                    }
-                    variant={row.isDirectInput ? "filled" : "outlined"}
-                    size="small"
-                  />
-                  {row.isExpandedChild && 
-                    <Tooltip title="Automatisch ergänzter Untercode">
-                      <span style={{marginLeft: '4px', fontSize: '0.75rem', color: '#666'}}>+</span>
-                    </Tooltip>
-                  }
+                  <Tooltip 
+                    title={row.isExpandedChild ? "Automatisch ergänzter Untercode" : ""}
+                    placement="top"
+                  >
+                    <Chip 
+                      label={row.kode} 
+                      color={
+                        row.isExpandedChild ? 'info' :
+                        'primary'
+                      }
+                      variant={row.isDirectInput ? "filled" : "outlined"}
+                      size="small"
+                    />
+                  </Tooltip>
                 </TableCell>
                 
                 <TableCell>{row.beschreibung}</TableCell>
