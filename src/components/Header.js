@@ -1,6 +1,5 @@
 import React from 'react';
 import { AppBar, Toolbar, Typography, Box, useMediaQuery, useTheme, IconButton } from '@mui/material';
-import MedicalInformationIcon from '@mui/icons-material/MedicalInformation';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import ThemeToggle from './ThemeToggle';
 
@@ -36,7 +35,6 @@ const Header = ({ toggleColorMode }) => {
         >
           <ArrowBackIcon />
         </IconButton>
-        <MedicalInformationIcon sx={{ mr: 2 }} />
         <Typography 
           variant={isMobile ? "h6" : "h5"} 
           component="h1" 
