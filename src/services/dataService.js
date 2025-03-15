@@ -243,7 +243,9 @@ export const searchICDCodes = async (input, year, showChildCodes = false) => {
               beschreibung: codeData.beschreibung,
               gruppe: findICDGroup(matchedCode, icdData.groups),
               kapitel: findICDChapter(matchedCode, icdData.codes, icdData.chapters),
-              isParent: true
+              isParent: true,
+              isDirectInput: true,
+              isEndstellig: !codeData.isNonTerminal && !code.endsWith('-'),
             });
           });
         }
@@ -273,7 +275,9 @@ export const searchICDCodes = async (input, year, showChildCodes = false) => {
               beschreibung: codeData.beschreibung,
               gruppe: findICDGroup(code, icdData.groups),
               kapitel: findICDChapter(code, icdData.codes, icdData.chapters),
-              isParent: true // Markieren als übergeordneten Code
+              isParent: true,
+              isDirectInput: true,
+              isEndstellig: !codeData.isNonTerminal && !code.endsWith('-'),
             });
             
             // Füge alle endstelligen Codes hinzu, aber nur wenn showChildCodes aktiviert ist
@@ -287,7 +291,10 @@ export const searchICDCodes = async (input, year, showChildCodes = false) => {
                   beschreibung: icdData.codes[childCode].beschreibung,
                   gruppe: findICDGroup(childCode, icdData.groups),
                   kapitel: findICDChapter(childCode, icdData.codes, icdData.chapters),
-                  parentCode: code // Referenz zum übergeordneten Code
+                  parentCode: code,
+                  isDirectInput: false,
+                  isExpandedChild: true,
+                  isEndstellig: !icdData.codes[childCode].isNonTerminal && !childCode.endsWith('-'),
                 });
               });
             }
@@ -297,7 +304,9 @@ export const searchICDCodes = async (input, year, showChildCodes = false) => {
               kode: code,
               beschreibung: codeData.beschreibung,
               gruppe: findICDGroup(code, icdData.groups),
-              kapitel: findICDChapter(code, icdData.codes, icdData.chapters)
+              kapitel: findICDChapter(code, icdData.codes, icdData.chapters),
+              isDirectInput: true,
+              isEndstellig: !codeData.isNonTerminal && !code.endsWith('-'),
             });
           }
         } else {
@@ -306,7 +315,9 @@ export const searchICDCodes = async (input, year, showChildCodes = false) => {
             kode: code,
             beschreibung: codeData.beschreibung,
             gruppe: findICDGroup(code, icdData.groups),
-            kapitel: findICDChapter(code, icdData.codes, icdData.chapters)
+            kapitel: findICDChapter(code, icdData.codes, icdData.chapters),
+            isDirectInput: true,
+            isEndstellig: !codeData.isNonTerminal && !code.endsWith('-'),
           });
         }
       } else {
@@ -325,7 +336,10 @@ export const searchICDCodes = async (input, year, showChildCodes = false) => {
                 beschreibung: icdData.codes[childCode].beschreibung,
                 gruppe: findICDGroup(childCode, icdData.groups),
                 kapitel: findICDChapter(childCode, icdData.codes, icdData.chapters),
-                fromParent: code // Markieren, aus welchem übergeordneten Code dieser stammt
+                fromParent: code,
+                isDirectInput: false,
+                isExpandedChild: true,
+                isEndstellig: !icdData.codes[childCode].isNonTerminal && !childCode.endsWith('-'),
               });
             });
           } else {
@@ -334,7 +348,9 @@ export const searchICDCodes = async (input, year, showChildCodes = false) => {
               kode: code,
               beschreibung: `Übergeordneter Code mit ${childCodes.length} Untercodes`,
               isParent: true,
-              virtualParent: true
+              virtualParent: true,
+              isDirectInput: false,
+              isEndstellig: true,
             });
           }
         } else {
@@ -344,6 +360,13 @@ export const searchICDCodes = async (input, year, showChildCodes = false) => {
     }
     
     console.log(`ICD search complete, found ${results.length} results`);
+    for (const result of results) {
+      // Setze isEndstellig basierend auf verschiedenen Kriterien
+      result.isEndstellig = !result.isNonTerminal && 
+                            !result.isParent && 
+                            !result.kode.endsWith('-') &&
+                            !result.parentCode;
+    }
     return {
       results,
       duplicatesRemoved,
@@ -406,7 +429,9 @@ export const searchOPSCodes = async (input, year, showChildCodes = false) => {
               gruppe: findOPSGroup(matchedCode, opsData.groups),
               kapitel: findOPSChapter(matchedCode, opsData.chapters),
               dreisteller: findDreistellerRange(formattedCode, opsData.dreisteller)?.description || '',
-              isParent: codeData.isNonTerminal
+              isParent: codeData.isNonTerminal,
+              isDirectInput: true,
+              isEndstellig: !codeData.isNonTerminal && !formattedCode.endsWith('-'),
             });
           });
         }
@@ -433,7 +458,9 @@ export const searchOPSCodes = async (input, year, showChildCodes = false) => {
           gruppe: findOPSGroup(formattedCode, opsData.groups),
           kapitel: findOPSChapter(formattedCode, opsData.chapters),
           dreisteller: dreistellerInfo ? dreistellerInfo.description : '',
-          isParent: codeData.isNonTerminal
+          isParent: codeData.isNonTerminal,
+          isDirectInput: true,
+          isEndstellig: !codeData.isNonTerminal && !formattedCode.endsWith('-'),
         });
         
         // Wenn es ein übergeordneter Code ist und showChildCodes aktiviert ist,
@@ -456,7 +483,10 @@ export const searchOPSCodes = async (input, year, showChildCodes = false) => {
                 gruppe: findOPSGroup(childCode, opsData.groups),
                 kapitel: findOPSChapter(childCode, opsData.chapters),
                 dreisteller: childDreistellerInfo ? childDreistellerInfo.description : '',
-                parentCode: formattedCode // Referenz zum übergeordneten Code
+                parentCode: formattedCode,
+                isDirectInput: false,
+                isExpandedChild: true,
+                isEndstellig: !opsData.codes[childCode].isNonTerminal && !childCode.endsWith('-'),
               });
             });
           }
@@ -477,7 +507,9 @@ export const searchOPSCodes = async (input, year, showChildCodes = false) => {
               gruppe: dreistellerInfo.description,
               kapitel: findOPSChapter(dreistellerCode, opsData.chapters),
               dreisteller: dreistellerInfo.description,
-              isParent: true
+              isParent: true,
+              isDirectInput: true,
+              isEndstellig: !dreistellerInfo.isNonTerminal && !dreistellerCode.endsWith('-'),
             });
             
             // Finde alle Kindcodes dieses Dreistellercodes, aber nur wenn showChildCodes aktiviert ist
@@ -496,7 +528,10 @@ export const searchOPSCodes = async (input, year, showChildCodes = false) => {
                     gruppe: dreistellerInfo.description,
                     kapitel: findOPSChapter(childCode, opsData.chapters),
                     dreisteller: dreistellerInfo.description,
-                    parentCode: dreistellerCode
+                    parentCode: dreistellerCode,
+                    isDirectInput: false,
+                    isExpandedChild: true,
+                    isEndstellig: !childData.isNonTerminal && !childCode.endsWith('-'),
                   });
                 });
               }
@@ -512,6 +547,12 @@ export const searchOPSCodes = async (input, year, showChildCodes = false) => {
     
     console.log(`OPS search complete, found ${results.length} results`);
     console.log('OPS search results with showChildCodes=' + showChildCodes, results);
+    for (const result of results) {
+      // Setze isEndstellig basierend auf verschiedenen Kriterien
+      result.isEndstellig = !result.isNonTerminal && 
+                            !result.isParent && 
+                            !result.parentCode;
+    }
     return {
       results,
       duplicatesRemoved,

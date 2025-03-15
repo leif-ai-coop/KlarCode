@@ -227,6 +227,19 @@ const ResultsTable = ({
         />
       </Box>
       
+      {showMore.childCodes && (
+        <Box sx={{ display: 'flex', alignItems: 'center', mt: 1, mb: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', mr: 3 }}>
+            <Chip color="primary" variant="filled" size="small" sx={{ mr: 1 }} label="Beispiel" />
+            <Typography variant="caption">Direkt eingegebener Code</Typography>
+          </Box>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <Chip color="info" variant="outlined" size="small" sx={{ mr: 1 }} label="Beispiel +" />
+            <Typography variant="caption">Automatisch ergänzter Untercode</Typography>
+          </Box>
+        </Box>
+      )}
+      
       <TableContainer sx={{ maxHeight: '60vh', overflowX: 'auto' }}>
         <Table stickyHeader aria-label="Ergebnistabelle" size={isMobile ? 'small' : 'medium'}>
           <TableHead>
@@ -300,15 +313,26 @@ const ResultsTable = ({
               <TableRow 
                 key={`${row.kode}-${index}`}
                 hover
-                sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
+                sx={{ 
+                  '&:last-child td, &:last-child th': { border: 0 },
+                  backgroundColor: row.isExpandedChild ? 'rgba(0, 0, 255, 0.05)' : 'inherit'
+                }}
               >
                 <TableCell component="th" scope="row">
                   <Chip 
                     label={row.kode} 
-                    color={row.kode.startsWith('A') || row.kode.startsWith('B') ? 'primary' : 'secondary'}
-                    variant="outlined"
+                    color={
+                      row.isExpandedChild ? 'info' :
+                      'primary'
+                    }
+                    variant={row.isDirectInput ? "filled" : "outlined"}
                     size="small"
                   />
+                  {row.isExpandedChild && 
+                    <Tooltip title="Automatisch ergänzter Untercode">
+                      <span style={{marginLeft: '4px', fontSize: '0.75rem', color: '#666'}}>+</span>
+                    </Tooltip>
+                  }
                 </TableCell>
                 
                 <TableCell>{row.beschreibung}</TableCell>
