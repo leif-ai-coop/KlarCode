@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { TextField, Button, Box, FormControl, InputLabel, Select, MenuItem, Paper, Typography, Chip, CircularProgress, IconButton, InputAdornment } from '@mui/material';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
+import { getAvailableYears } from '../services/dataService';
 
 /**
  * Search box component for entering medical codes
@@ -17,7 +18,29 @@ const SearchBox = ({
   errors 
 }) => {
   const [inputValue, setInputValue] = useState(searchInput);
-  const availableYears = ['2025', '2026'];
+  const [availableYears, setAvailableYears] = useState([]);
+  const [loadingYears, setLoadingYears] = useState(true);
+  
+  useEffect(() => {
+    const loadYears = async () => {
+      try {
+        setLoadingYears(true);
+        const years = await getAvailableYears();
+        setAvailableYears(years);
+        
+        if (years.length > 0 && !years.includes(selectedYear)) {
+          onYearChange(years[0]);
+        }
+      } catch (error) {
+        console.error('Fehler beim Laden der verfügbaren Jahre:', error);
+        setAvailableYears(['2025']);
+      } finally {
+        setLoadingYears(false);
+      }
+    };
+
+    loadYears();
+  }, []);
   
   const handleChange = (e) => {
     setInputValue(e.target.value);
@@ -91,6 +114,7 @@ const SearchBox = ({
             value={selectedYear}
             label="Jahr"
             onChange={(e) => onYearChange(e.target.value)}
+            disabled={loadingYears}
           >
             {availableYears.map(year => (
               <MenuItem key={year} value={year}>{year}</MenuItem>

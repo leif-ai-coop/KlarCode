@@ -28,6 +28,9 @@ import {
   findDreistellerRange
 } from '../utils/search';
 
+// Fügen Sie den Jahre-Import hier hinzu
+import verfügbareJahre from '../data/jahre.json';
+
 // Cache für geladene Daten
 const dataCache = {
   icd: {},
@@ -35,12 +38,36 @@ const dataCache = {
 };
 
 /**
- * Get the current year or fallback to 2025 if not available
- * @returns {string} - The current year
+ * Get all available years for which data exists
+ * @returns {Promise<string[]>} - Promise resolving to array of available years
  */
-export const getCurrentYear = () => {
-  const currentYear = new Date().getFullYear();
-  return currentYear >= 2025 && currentYear <= 2026 ? currentYear.toString() : '2025';
+export const getAvailableYears = async () => {
+  try {
+    // Sortiere die Jahre in absteigender Reihenfolge (neueste zuerst)
+    const sortedYears = [...verfügbareJahre].sort((a, b) => b - a);
+    console.log("Verfügbare Jahre aus jahre.json (absteigend):", sortedYears);
+    return sortedYears;
+  } catch (error) {
+    console.error("Fehler beim Laden der Jahre:", error);
+    return ['2025']; // Fallback
+  }
+};
+
+/**
+ * Get the current year or fallback to the first available year
+ * @returns {Promise<string>} - Promise resolving to the current year
+ */
+export const getCurrentYear = async () => {
+  const availableYears = await getAvailableYears();
+  const currentYear = new Date().getFullYear().toString();
+  
+  // Wenn das aktuelle Jahr in den verfügbaren Jahren ist, verwende es
+  if (availableYears.includes(currentYear)) {
+    return currentYear;
+  }
+  
+  // Ansonsten verwende das erste verfügbare Jahr
+  return availableYears[0];
 };
 
 /**
