@@ -25,7 +25,8 @@ import {
   detectCodeType,
   formatOPSCode,
   formatICDCode,
-  findDreistellerRange
+  findDreistellerRange,
+  normalizeOPSCode
 } from '../utils/search';
 
 // Cache für geladene Daten
@@ -392,7 +393,8 @@ export const searchOPSCodes = async (input, year, showChildCodes = false) => {
     
     // Process each code
     for (const rawCode of codes) {
-      const code = normalizeCode(rawCode);
+      // Verwende die erweiterte Normalisierung für OPS-Codes
+      let code = normalizeCode(rawCode);
       
       // Skip non-OPS codes
       if (detectCodeType(code) !== 'ops') {
@@ -400,8 +402,8 @@ export const searchOPSCodes = async (input, year, showChildCodes = false) => {
         continue;
       }
       
-      // Formatieren des OPS-Codes
-      const formattedCode = formatOPSCode(code);
+      // Formatieren des OPS-Codes mit der erweiterten Funktion
+      const formattedCode = normalizeOPSCode(code);
       
       console.log(`Processing OPS code "${rawCode}" (normalized: "${code}", formatted: "${formattedCode}")`);
       

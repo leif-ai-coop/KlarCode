@@ -30,25 +30,57 @@ export const isValidOPSFormat = (code) => {
 };
 
 /**
- * Format an OPS code by:
- * 1. Inserting a hyphen after the first digit if missing
- * 2. Inserting a dot at the correct position if missing
- * @param {string} code - The OPS code to format
- * @returns {string} - Properly formatted OPS code
+ * Erweiterte Normalisierung für OPS-Codes, um verschiedene Eingabeformate zu unterstützen
+ * @param {string} code - Der zu normalisierende Code
+ * @returns {string} - Korrekt formatierter OPS-Code
  */
-export const formatOPSCode = (code) => {
-  // Bereits formatiert (hat Bindestrich)
-  if (code.includes('-')) {
-    return code;
+export const normalizeOPSCode = (code) => {
+  // Zuerst grundlegende Normalisierung durchführen
+  let normalized = normalizeCode(code);
+  
+  // Prüfen, ob es bereits ein korrekt formatierter OPS-Code ist
+  if (isValidOPSFormat(normalized)) {
+    return normalized;
   }
   
-  // Kein Bindestrich vorhanden, aber beginnt mit einer Ziffer
-  if (/^\d/.test(code)) {
+  // Fall 1: Nur der Bindestrich fehlt (z.B. "538a.90")
+  if (/^\d{2,}[a-z]?\.\d+$/i.test(normalized)) {
+    normalized = normalized.replace(/^(\d)/, '$1-');
+    return normalized;
+  }
+  
+  // Fall 2: Nur der Punkt fehlt (z.B. "5-38a90")
+  if (/^\d-\d{2,3}[a-z]?\d+$/i.test(normalized)) {
+    const match = normalized.match(/^(\d-\d{2,3}[a-z]?)(\d+)$/i);
+    if (match) {
+      const basisCode = match[1]; // z.B. "5-38a"
+      const restCode = match[2];  // z.B. "90"
+      normalized = `${basisCode}.${restCode}`;
+      return normalized;
+    }
+  }
+  
+  // Fall 3: Kompakte Form ohne Trennzeichen (z.B. "538a90")
+  if (/^\d{3,}[a-z0-9]*$/i.test(normalized)) {
     // Bindestrich nach der ersten Ziffer einfügen
-    code = code.replace(/^(\d)/, '$1-');
+    normalized = normalized.replace(/^(\d)/, '$1-');
+    
+    // Ermitteln, wo der Punkt eingefügt werden soll
+    // Regel: Nach dem Buchstaben, oder nach den ersten 2-3 Ziffern, wenn kein Buchstabe vorhanden ist
+    const match = normalized.match(/^\d-(\d{2,3}[a-z]?)([0-9a-z]*)$/i);
+    
+    if (match) {
+      const basisCode = match[1]; // z.B. "38a" oder "38"
+      const restCode = match[2];  // z.B. "90"
+      
+      // Nur Punkt hinzufügen, wenn restCode nicht leer ist
+      if (restCode && restCode.length > 0) {
+        normalized = `${normalized.substring(0, normalized.indexOf(basisCode) + basisCode.length)}.${restCode}`;
+      }
+    }
   }
   
-  return code;
+  return normalized;
 };
 
 /**
@@ -313,8 +345,12 @@ export const detectCodeType = (code) => {
     return 'icd';
   }
   
-  // Wenn der Code mit einer Zahl beginnt, ist es ein OPS-Code
+  // Wenn der Code mit einer Zahl beginnt und dem OPS-Muster entspricht, ist es ein OPS-Code
   if (/^\d/.test(normalized)) {
+    // Erweiterte Erkennung für kompakte OPS-Codes ohne Trennzeichen
+    if (/^\d{3,}[a-z0-9]*$/i.test(normalized)) {
+      return 'ops';
+    }
     return 'ops';
   }
   
@@ -419,4 +455,16 @@ export const formatICDCode = (code) => {
   }
   
   return code;
+};
+
+/**
+ * Format an OPS code by:
+ * 1. Inserting a hyphen after the first digit if missing
+ * 2. Inserting a dot at the correct position if missing
+ * @param {string} code - The OPS code to format
+ * @returns {string} - Properly formatted OPS code
+ */
+export const formatOPSCode = (code) => {
+  // Nutze die neue erweiterte Normalisierung
+  return normalizeOPSCode(code);
 }; 
