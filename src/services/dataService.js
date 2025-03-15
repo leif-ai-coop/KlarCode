@@ -116,8 +116,19 @@ export const loadICDData = async (year) => {
     const groups = parseICDGroups(await groupsResponse.text());
     const chapters = parseICDChapters(await chaptersResponse.text());
     
+    // Create a case-insensitive lookup map for codes
+    const codeMap = {};
+    for (const key in codes) {
+      codeMap[key.toUpperCase()] = key;
+    }
+    
     // Cache the data
-    dataCache.icd[year] = { codes, groups, chapters };
+    dataCache.icd[year] = { 
+      codes, 
+      groups, 
+      chapters,
+      codeMap // Add the case-insensitive map
+    };
     
     // Datenzusammenfassung ausgeben
     console.log(`Loaded ${Object.keys(codes).length} ICD codes`);
@@ -183,12 +194,25 @@ export const loadOPSData = async (year) => {
       }
     }
     
-    // Cache the data with the integrated codes
+    // Create case-insensitive lookup maps
+    const codeMap = {};
+    for (const key in integratedCodes) {
+      codeMap[key.toUpperCase()] = key;
+    }
+    
+    const dreistellerMap = {};
+    for (const key in dreisteller) {
+      dreistellerMap[key.toUpperCase()] = key;
+    }
+    
+    // Cache the data with the integrated codes and case maps
     dataCache.ops[year] = { 
       codes: integratedCodes,
       groups, 
       chapters, 
-      dreisteller 
+      dreisteller,
+      codeMap,
+      dreistellerMap
     };
     
     return dataCache.ops[year];
@@ -196,6 +220,31 @@ export const loadOPSData = async (year) => {
     console.error(`Error loading OPS data for ${year}:`, error);
     throw error;
   }
+};
+
+/**
+ * Helper function to find a code in a case-insensitive way
+ * @param {string} code - The code to find
+ * @param {Object} codeMap - Case-insensitive lookup map
+ * @param {Object} codes - Original codes object
+ * @returns {Object|null} - The code data or null if not found
+ */
+const findCodeCaseInsensitive = (code, codeMap, codes) => {
+  // Convert to uppercase for lookup
+  const upperCode = code.toUpperCase();
+  
+  // Try to find the original case key
+  const originalKey = codeMap[upperCode];
+  
+  if (originalKey && codes[originalKey]) {
+    return {
+      found: true,
+      codeData: codes[originalKey],
+      exactCode: originalKey
+    };
+  }
+  
+  return { found: false, codeData: null, exactCode: code };
 };
 
 /**
@@ -263,21 +312,28 @@ export const searchICDCodes = async (input, year, showChildCodes = false) => {
         continue;
       }
       
+      // Find code case-insensitively
+      const { found, codeData, exactCode } = findCodeCaseInsensitive(
+        formattedCode, 
+        icdData.codeMap, 
+        icdData.codes
+      );
+      
       // Check if code exists directly
-      if (icdData.codes[formattedCode]) {
-        const codeData = icdData.codes[formattedCode];
-        
+      if (found) {
         // Prüfen, ob der Code selbst existiert
-        const childCodes = findChildICDCodes(formattedCode, icdData.codes);
+        const childCodes = findChildICDCodes(exactCode, icdData.codes);
         
         // Prüfen, ob es tatsächlich Kind-Codes gibt, die nicht der Code selbst sind
-        const hasRealChildren = childCodes.some(childCode => childCode !== formattedCode);
+        const hasRealChildren = childCodes.some(childCode => {
+          return childCode.toUpperCase() !== exactCode.toUpperCase();
+        });
         
         results.push({
-          kode: formattedCode,
+          kode: exactCode,
           beschreibung: codeData.beschreibung,
-          gruppe: findICDGroup(formattedCode, icdData.groups),
-          kapitel: findICDChapter(formattedCode, icdData.codes, icdData.chapters),
+          gruppe: findICDGroup(exactCode, icdData.groups),
+          kapitel: findICDChapter(exactCode, icdData.codes, icdData.chapters),
           isParent: hasRealChildren, // Dies als Parent markieren, wenn es echte Kind-Codes hat
           hasChildCodes: hasRealChildren, // Explizit markieren, ob es Kind-Codes hat
           isDirectInput: true,
@@ -287,12 +343,12 @@ export const searchICDCodes = async (input, year, showChildCodes = false) => {
         // Wenn es ein übergeordneter Code ist und showChildCodes aktiviert ist,
         // finde und füge alle Kindcodes hinzu
         if (showChildCodes && hasRealChildren) {
-          console.log(`${formattedCode} hat ${childCodes.length} zugehörige Codes`);
+          console.log(`${exactCode} hat ${childCodes.length} zugehörige Codes`);
           
           // Füge alle gefundenen Kinder hinzu
           childCodes.forEach(childCode => {
             // Überspringe den übergeordneten Code selbst in der Kindliste
-            if (childCode === formattedCode) return;
+            if (childCode.toUpperCase() === exactCode.toUpperCase()) return;
             
             const childData = icdData.codes[childCode];
             if (!childData) return; // Überspringe nicht vorhandene Codes
@@ -302,7 +358,7 @@ export const searchICDCodes = async (input, year, showChildCodes = false) => {
               beschreibung: childData.beschreibung,
               gruppe: findICDGroup(childCode, icdData.groups),
               kapitel: findICDChapter(childCode, icdData.codes, icdData.chapters),
-              parentCode: formattedCode,
+              parentCode: exactCode,
               isDirectInput: false,
               isExpandedChild: true,
               isEndstellig: !childData.isNonTerminal && !childCode.endsWith('-'),
@@ -437,54 +493,62 @@ export const searchOPSCodes = async (input, year, showChildCodes = false) => {
         continue;
       }
       
+      // Find code case-insensitively
+      const { found, codeData, exactCode } = findCodeCaseInsensitive(
+        formattedCode, 
+        opsData.codeMap, 
+        opsData.codes
+      );
+      
       // Check if code exists directly
-      if (opsData.codes[formattedCode]) {
-        const codeData = opsData.codes[formattedCode];
-        
+      if (found) {
         // Finde den Dreisteller-Bereich
-        const dreistellerInfo = findDreistellerRange(formattedCode, opsData.dreisteller);
+        const dreistellerInfo = findDreistellerRange(exactCode, opsData.dreisteller);
         
         // Check if the code has child codes
-        const childCodes = findChildOPSCodes(formattedCode, opsData.codes);
-        const hasChildren = childCodes.length > 0 && childCodes.some(c => c !== formattedCode);
+        const childCodes = findChildOPSCodes(exactCode, opsData.codes);
+        const hasChildren = childCodes.length > 0 && 
+                          childCodes.some(c => c.toUpperCase() !== exactCode.toUpperCase());
         
         // Füge den Hauptcode immer zu den Ergebnissen hinzu
         results.push({
-          kode: formattedCode,
+          kode: exactCode,
           beschreibung: codeData.beschreibung,
-          gruppe: findOPSGroup(formattedCode, opsData.groups),
-          kapitel: findOPSChapter(formattedCode, opsData.chapters),
+          gruppe: findOPSGroup(exactCode, opsData.groups),
+          kapitel: findOPSChapter(exactCode, opsData.chapters),
           dreisteller: dreistellerInfo ? dreistellerInfo.description : '',
           isParent: codeData.isNonTerminal || hasChildren,
           hasChildCodes: hasChildren, // Explicitly mark if it has children
           isDirectInput: true,
-          isEndstellig: !codeData.isNonTerminal && !formattedCode.endsWith('-'),
+          isEndstellig: !codeData.isNonTerminal && !exactCode.endsWith('-'),
         });
         
         // Wenn es ein übergeordneter Code ist und showChildCodes aktiviert ist,
         // finde und füge alle Kindcodes hinzu
-        if (showChildCodes && codeData.isNonTerminal) {
-          console.log(`${formattedCode} ist ein nicht-endstelliger OPS-Code, suche nach allen zugehörigen Codes...`);
-          const childCodes = findChildOPSCodes(formattedCode, opsData.codes);
+        if (showChildCodes && (codeData.isNonTerminal || hasChildren)) {
+          console.log(`${exactCode} ist ein nicht-endstelliger OPS-Code, suche nach allen zugehörigen Codes...`);
           
           if (childCodes.length > 0) {
             // Füge alle endstelligen Codes hinzu
             childCodes.forEach(childCode => {
-              // Überspringe den übergeordneten Code selbst in der Kindliste
-              if (childCode === formattedCode) return;
+              // Überspringe den übergeordneten Code selbst in der Kindliste (case-insensitive)
+              if (childCode.toUpperCase() === exactCode.toUpperCase()) return;
+              
+              const childData = opsData.codes[childCode];
+              if (!childData) return; // Überspringe nicht vorhandene Codes
               
               const childDreistellerInfo = findDreistellerRange(childCode, opsData.dreisteller);
               
               results.push({
                 kode: childCode,
-                beschreibung: opsData.codes[childCode].beschreibung,
+                beschreibung: childData.beschreibung,
                 gruppe: findOPSGroup(childCode, opsData.groups),
                 kapitel: findOPSChapter(childCode, opsData.chapters),
                 dreisteller: childDreistellerInfo ? childDreistellerInfo.description : '',
-                parentCode: formattedCode,
+                parentCode: exactCode,
                 isDirectInput: false,
                 isExpandedChild: true,
-                isEndstellig: !opsData.codes[childCode].isNonTerminal && !childCode.endsWith('-'),
+                isEndstellig: !childData.isNonTerminal && !childCode.endsWith('-'),
               });
             });
           }
@@ -495,24 +559,34 @@ export const searchOPSCodes = async (input, year, showChildCodes = false) => {
         
         if (dreistellerMatch) {
           const dreistellerCode = dreistellerMatch[1];
-          const dreistellerInfo = findDreistellerRange(dreistellerCode, opsData.dreisteller);
+          
+          // Find dreisteller case-insensitively
+          let dreistellerInfo = null;
+          const upperDreistellerCode = dreistellerCode.toUpperCase();
+          const exactDreistellerCode = opsData.dreistellerMap[upperDreistellerCode];
+          
+          if (exactDreistellerCode) {
+            dreistellerInfo = opsData.dreisteller[exactDreistellerCode];
+          }
           
           if (dreistellerInfo) {
             // Füge den Dreisteller selbst hinzu
             results.push({
-              kode: dreistellerCode,
+              kode: exactDreistellerCode || dreistellerCode,
               beschreibung: dreistellerInfo.description,
               gruppe: dreistellerInfo.description,
               kapitel: findOPSChapter(dreistellerCode, opsData.chapters),
               dreisteller: dreistellerInfo.description,
               isParent: true,
               isDirectInput: true,
-              isEndstellig: !dreistellerInfo.isNonTerminal && !dreistellerCode.endsWith('-'),
+              isEndstellig: false,
             });
             
             // Finde alle Kindcodes dieses Dreistellercodes, aber nur wenn showChildCodes aktiviert ist
             if (showChildCodes) {
-              const childPattern = new RegExp(`^${dreistellerCode}\\d`);
+              // Create a case-insensitive regex for finding child codes
+              const childPattern = new RegExp(`^${dreistellerCode.replace(/[-]/g, '[-]')}\\d`, 'i');
+              
               const childCodes = Object.keys(opsData.codes).filter(code => 
                 childPattern.test(code)
               );
@@ -526,7 +600,7 @@ export const searchOPSCodes = async (input, year, showChildCodes = false) => {
                     gruppe: dreistellerInfo.description,
                     kapitel: findOPSChapter(childCode, opsData.chapters),
                     dreisteller: dreistellerInfo.description,
-                    parentCode: dreistellerCode,
+                    parentCode: exactDreistellerCode || dreistellerCode,
                     isDirectInput: false,
                     isExpandedChild: true,
                     isEndstellig: !childData.isNonTerminal && !childCode.endsWith('-'),

@@ -4,8 +4,8 @@
  * @returns {boolean} - True if valid format, false otherwise
  */
 export const isValidICDFormat = (code) => {
-  // Format: A00 or A00.0
-  return /^[A-Z]\d{2}(\.\d+)?$/.test(code);
+  // Format: A00 or A00.0 - now case insensitive
+  return /^[A-Za-z]\d{2}(\.\d+)?$/.test(code);
 };
 
 /**
@@ -14,18 +14,7 @@ export const isValidICDFormat = (code) => {
  * @returns {boolean} - True if valid format, false otherwise
  */
 export const isValidOPSFormat = (code) => {
-  // Erweiterte Validierung für OPS-Codes:
-  // - Beginnt mit Ziffer-Bindestrich-Ziffern: \d-\d+
-  // - Kann Buchstaben im Hauptteil haben: [a-z]*
-  // - Kann optional einen Punkt haben, gefolgt von:
-  //   - Ziffern und/oder Buchstaben: [a-z0-9]+
-  // 
-  // Beispiele:
-  // - 1-20 (einfacher Code)
-  // - 1-202.00 (Code mit Dezimalstelle)
-  // - 1-20a.31 (Code mit Buchstabe und Dezimalstelle)
-  // - 1-20b (Code mit Buchstabe ohne Dezimalstelle)
-  // - 1-20c.x, 1-20c.y (Code mit Buchstaben nach dem Punkt)
+  // Erweiterte Validierung für OPS-Codes - already case insensitive with /i flag
   return /^\d-\d+[a-z]*(\.[a-z0-9]+)?$/i.test(code);
 };
 
@@ -104,8 +93,13 @@ export const parseUserInput = (input) => {
     .map(code => code.trim())
     .filter(code => code.length > 0);
   
-  // Remove duplicates
-  const uniqueCodes = [...new Set(codes)];
+  // Remove duplicates - use case-insensitive comparison 
+  const uniqueMap = new Map();
+  codes.forEach(code => {
+    uniqueMap.set(code.toLowerCase(), code);
+  });
+  
+  const uniqueCodes = Array.from(uniqueMap.values());
   const duplicatesRemoved = codes.length - uniqueCodes.length;
   
   return {
@@ -130,12 +124,12 @@ export const isWildcardSearch = (code) => {
  * @returns {RegExp} - Regular expression
  */
 export const wildcardToRegex = (pattern) => {
-  // Ersetze sowohl * als auch % mit regex .*
+  // Ersetze sowohl * als auch % mit regex .* and make it case-insensitive
   const regexPattern = pattern
     .replace(/\*/g, '.*')
     .replace(/%/g, '.*');
   
-  return new RegExp(`^${regexPattern}$`);
+  return new RegExp(`^${regexPattern}$`, 'i'); // Add 'i' flag for case-insensitivity
 };
 
 /**
@@ -163,19 +157,23 @@ export const findChildICDCodes = (parentCode, allCodes) => {
   const normalizedParentCode = normalizeCode(parentCode);
   
   return Object.keys(allCodes).filter(code => {
+    // Convert codes to uppercase for case-insensitive comparison
+    const upperCode = code.toUpperCase();
+    const upperParentCode = normalizedParentCode.toUpperCase();
+    
     // Exact match
-    if (code === normalizedParentCode) return true;
+    if (upperCode === upperParentCode) return true;
     
     // Check if it's a direct child (like L40.7 -> L40.70)
-    if (code.startsWith(normalizedParentCode + '.') || 
-        code.startsWith(normalizedParentCode.split('.')[0] + '.') && 
-        code.includes(normalizedParentCode.replace('.', ''))) {
+    if (upperCode.startsWith(upperParentCode + '.') || 
+        upperCode.startsWith(upperParentCode.split('.')[0] + '.') && 
+        upperCode.includes(upperParentCode.replace('.', ''))) {
       return true;
     }
     
     // Für ICD-Codes wie L40.7 -> L40.70, vergleiche ohne den Punkt
-    const withoutDotParent = normalizedParentCode.replace('.', '');
-    const withoutDotChild = code.replace('.', '');
+    const withoutDotParent = upperParentCode.replace('.', '');
+    const withoutDotChild = upperCode.replace('.', '');
     
     if (withoutDotChild.startsWith(withoutDotParent) && 
         withoutDotChild !== withoutDotParent) {
@@ -193,22 +191,22 @@ export const findChildICDCodes = (parentCode, allCodes) => {
  * @returns {string[]} - Array of child codes
  */
 export const findChildOPSCodes = (parentCode, codeMap) => {
-  // Verschiedene Arten von Kindcodes bei OPS:
-  // 1. Codes, die mit dem Elterncode + Punkt beginnen: 1-20.0, 1-20.1 für 1-20
-  // 2. Codes, die mit dem Elterncode + Buchstabe beginnen: 1-20a, 1-20b für 1-20
-  // 3. Codes, die mit dem Elterncode + Buchstabe + Punkt beginnen: 1-20a.31 für 1-20a
+  // Convert parent code to uppercase for case-insensitive comparison
+  const upperParentCode = parentCode.toUpperCase();
   
   const childCodes = Object.keys(codeMap).filter(code => {
+    const upperCode = code.toUpperCase();
+    
     // Exakter Match, aber als nicht-endstellig markiert
-    if (code === parentCode && codeMap[code].isNonTerminal) {
+    if (upperCode === upperParentCode && codeMap[code].isNonTerminal) {
       return true;
     }
     
     // Kindcodes, die mit dem Elterncode beginnen
-    if (code !== parentCode && (
-        code.startsWith(parentCode + '.') || 
-        code.startsWith(parentCode) && /[a-z]/i.test(code.substring(parentCode.length, parentCode.length + 1)) ||
-        code.startsWith(parentCode) && /\d/.test(code.substring(parentCode.length, parentCode.length + 1))
+    if (upperCode !== upperParentCode && (
+        upperCode.startsWith(upperParentCode + '.') || 
+        upperCode.startsWith(upperParentCode) && /[A-Z]/i.test(upperCode.substring(upperParentCode.length, upperParentCode.length + 1)) ||
+        upperCode.startsWith(upperParentCode) && /\d/.test(upperCode.substring(upperParentCode.length, upperParentCode.length + 1))
     )) {
       return true;
     }
@@ -257,7 +255,9 @@ export const findICDGroup = (code, groupsMap) => {
   // Find the group where the code falls between start and end
   for (const groupKey in groupsMap) {
     const group = groupsMap[groupKey];
-    if (baseCode >= group.start && baseCode <= group.end) {
+    // Convert to uppercase for case-insensitive comparison
+    if (baseCode.toUpperCase() >= group.start.toUpperCase() && 
+        baseCode.toUpperCase() <= group.end.toUpperCase()) {
       return group.description;
     }
   }
@@ -344,13 +344,23 @@ export const findOPSDreisteller = (code, dreistellerMap) => {
   // Extract the three-digit part from codes like 1-202.00 -> 1-202
   const dreistellerCode = code.split('.')[0];
   
-  if (dreistellerMap[dreistellerCode]) {
-    return dreistellerMap[dreistellerCode].description;
+  // Convert to uppercase for case-insensitive lookup
+  const upperDreistellerCode = dreistellerCode.toUpperCase();
+  
+  // Case-insensitive lookup in map
+  for (const key in dreistellerMap) {
+    if (key.toUpperCase() === upperDreistellerCode) {
+      return dreistellerMap[key].description;
+    }
   }
   
   // If not found, it might be a parent code itself
   if (dreistellerCode.match(/\d-\d{2}$/)) {
-    return dreistellerMap[dreistellerCode] ? dreistellerMap[dreistellerCode].description : '';
+    for (const key in dreistellerMap) {
+      if (key.toUpperCase() === upperDreistellerCode) {
+        return dreistellerMap[key].description;
+      }
+    }
   }
   
   return '';
@@ -365,15 +375,15 @@ export const detectCodeType = (code) => {
   // Normalisieren
   const normalized = normalizeCode(code);
   
-  // Wenn der Code mit einem Buchstaben beginnt, ist es ein ICD-Code
-  if (/^[A-Z]/.test(normalized)) {
+  // Wenn der Code mit einem Buchstaben beginnt, ist es ein ICD-Code - now case insensitive
+  if (/^[A-Za-z]/.test(normalized)) {
     return 'icd';
   }
   
   // Wenn der Code mit einer Zahl beginnt und dem OPS-Muster entspricht, ist es ein OPS-Code
   if (/^\d/.test(normalized)) {
     // Erweiterte Erkennung für kompakte OPS-Codes ohne Trennzeichen
-    if (/^\d{3,}[a-z0-9]*$/i.test(normalized)) {
+    if (/^\d{3,}[a-zA-Z0-9]*$/i.test(normalized)) {
       return 'ops';
     }
     return 'ops';
@@ -432,10 +442,13 @@ export const findDreistellerRange = (code, dreistellerMap) => {
   }
   
   const dreistellerCode = match[1];
+  const upperDreistellerCode = dreistellerCode.toUpperCase();
   
-  // Prüfe, ob der Dreisteller direkt in der Map existiert
-  if (dreistellerMap[dreistellerCode]) {
-    return dreistellerMap[dreistellerCode];
+  // Prüfe, ob der Dreisteller direkt in der Map existiert (case-insensitive)
+  for (const key in dreistellerMap) {
+    if (key.toUpperCase() === upperDreistellerCode) {
+      return dreistellerMap[key];
+    }
   }
   
   // Prüfe alle Bereiche in der Map
@@ -448,13 +461,15 @@ export const findDreistellerRange = (code, dreistellerMap) => {
     // Bereichsschlüssel haben das Format "startCode-endCode"
     const [startCode, endCode] = key.split('-');
     
-    // Prüfe, ob der Dreisteller-Code in diesem Bereich liegt
-    if (dreistellerCode >= startCode && dreistellerCode <= endCode) {
+    // Prüfe, ob der Dreisteller-Code in diesem Bereich liegt (case-insensitive)
+    if (dreistellerCode.toUpperCase() >= startCode.toUpperCase() && 
+        dreistellerCode.toUpperCase() <= endCode.toUpperCase()) {
       return dreistellerMap[key];
     }
     
-    // Alternativ: Prüfe, ob der vollständige Code in diesem Bereich liegt
-    if (code >= startCode && code <= endCode) {
+    // Alternativ: Prüfe, ob der vollständige Code in diesem Bereich liegt (case-insensitive)
+    if (code.toUpperCase() >= startCode.toUpperCase() && 
+        code.toUpperCase() <= endCode.toUpperCase()) {
       return dreistellerMap[key];
     }
   }
@@ -468,18 +483,21 @@ export const findDreistellerRange = (code, dreistellerMap) => {
  * @returns {string} - Properly formatted ICD code
  */
 export const formatICDCode = (code) => {
+  // Make sure first letter is uppercase for ICD codes
+  let formattedCode = code.charAt(0).toUpperCase() + code.slice(1).toLowerCase();
+  
   // Bereits formatiert (enthält einen Punkt)
-  if (code.includes('.')) {
-    return code;
+  if (formattedCode.includes('.')) {
+    return formattedCode;
   }
   
   // Code ist länger als 3 Zeichen und beginnt mit einem Buchstaben
-  if (code.length > 3 && /^[A-Z]/.test(code)) {
+  if (formattedCode.length > 3 && /^[A-Za-z]/.test(formattedCode)) {
     // Punkt nach der dritten Stelle einfügen
-    return code.substring(0, 3) + '.' + code.substring(3);
+    return formattedCode.substring(0, 3) + '.' + formattedCode.substring(3);
   }
   
-  return code;
+  return formattedCode;
 };
 
 /**
