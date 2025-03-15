@@ -21,7 +21,8 @@ import {
   findICDGroup,
   findOPSChapter,
   findOPSGroup,
-  findOPSDreisteller
+  findOPSDreisteller,
+  detectCodeType
 } from '../utils/search';
 
 // Cache für geladene Daten
@@ -51,26 +52,74 @@ export const loadICDData = async (year) => {
   }
   
   try {
-    // Load all required files
-    const codesResponse = await fetch(`/data/${year}/icd10/icd10gm${year}syst_kodes.txt`);
-    const groupsResponse = await fetch(`/data/${year}/icd10/icd10gm${year}syst_gruppen.txt`);
-    const chaptersResponse = await fetch(`/data/${year}/icd10/icd10gm${year}syst_kapitel.txt`);
+    // Verschiedene Pfadvarianten testen
+    let baseUrl = `/data/${year}/icd10/`;
     
-    if (!codesResponse.ok || !groupsResponse.ok || !chaptersResponse.ok) {
-      throw new Error(`Failed to load ICD-10 data for ${year}`);
+    // Logging hinzufügen, um das Problem besser zu verstehen
+    console.log(`Attempting to load ICD data from: ${baseUrl}`);
+    
+    // Load all required files
+    const codesResponse = await fetch(`${baseUrl}icd10gm${year}syst_kodes.txt`);
+    
+    if (!codesResponse.ok) {
+      console.error(`Failed to load ICD-10 codes: ${codesResponse.status}, trying alternative path...`);
+      
+      // Alternative paths to try
+      baseUrl = `/src/data/${year}/icd10/`;
+      console.log(`Trying alternative path: ${baseUrl}`);
+      
+      const altCodesResponse = await fetch(`${baseUrl}icd10gm${year}syst_kodes.txt`);
+      
+      if (!altCodesResponse.ok) {
+        console.error(`Failed to load ICD-10 codes from alternative path: ${altCodesResponse.status}`);
+        throw new Error(`Failed to load ICD-10 data for ${year}`);
+      }
+      
+      console.log("Successfully loaded ICD data from alternative path!");
+      const codes = parseICDCodes(await altCodesResponse.text());
+      
+      // Load other files
+      const groupsResponse = await fetch(`${baseUrl}icd10gm${year}syst_gruppen.txt`);
+      const chaptersResponse = await fetch(`${baseUrl}icd10gm${year}syst_kapitel.txt`);
+      
+      if (!groupsResponse.ok || !chaptersResponse.ok) {
+        throw new Error(`Failed to load ICD-10 groups or chapters for ${year}`);
+      }
+      
+      const groups = parseICDGroups(await groupsResponse.text());
+      const chapters = parseICDChapters(await chaptersResponse.text());
+      
+      // Cache the data
+      dataCache.icd[year] = { codes, groups, chapters };
+      
+      return dataCache.icd[year];
     }
     
+    // Ursprünglicher Code für den Fall, dass der erste Pfad funktioniert
+    console.log("Successfully loaded ICD data from original path!");
     const codesText = await codesResponse.text();
+    const codes = parseICDCodes(codesText);
+    
+    const groupsResponse = await fetch(`${baseUrl}icd10gm${year}syst_gruppen.txt`);
+    const chaptersResponse = await fetch(`${baseUrl}icd10gm${year}syst_kapitel.txt`);
+    
+    if (!groupsResponse.ok || !chaptersResponse.ok) {
+      throw new Error(`Failed to load ICD-10 groups or chapters for ${year}`);
+    }
+    
     const groupsText = await groupsResponse.text();
     const chaptersText = await chaptersResponse.text();
     
     // Parse the data
-    const codes = parseICDCodes(codesText);
     const groups = parseICDGroups(groupsText);
     const chapters = parseICDChapters(chaptersText);
     
     // Cache the data
     dataCache.icd[year] = { codes, groups, chapters };
+    
+    // Datenzusammenfassung ausgeben
+    console.log(`Loaded ${Object.keys(codes).length} ICD codes`);
+    console.log(`Sample codes:`, Object.keys(codes).slice(0, 5));
     
     return dataCache.icd[year];
   } catch (error) {
@@ -135,13 +184,23 @@ export const searchICDCodes = async (input, year) => {
   try {
     // Load or get cached data
     const icdData = await loadICDData(year);
+    console.log(`ICD Data loaded, ${Object.keys(icdData.codes).length} codes available`);
     
     // Parse user input
     const { codes, duplicatesRemoved } = parseUserInput(input);
+    console.log(`Parsed input "${input}" into codes for ICD search:`, codes);
     
     // Process each code
     for (const rawCode of codes) {
       const code = normalizeCode(rawCode);
+      
+      // Skip non-ICD codes
+      if (detectCodeType(code) !== 'icd') {
+        console.log(`Skipping non-ICD code: ${code}`);
+        continue;
+      }
+      
+      console.log(`Processing ICD code "${rawCode}" (normalized: "${code}")`);
       
       // Handle wildcard search
       if (isWildcardSearch(code)) {
@@ -156,7 +215,8 @@ export const searchICDCodes = async (input, year) => {
               kode: matchedCode,
               beschreibung: codeData.beschreibung,
               gruppe: findICDGroup(matchedCode, icdData.groups),
-              kapitel: findICDChapter(matchedCode, icdData.codes, icdData.chapters)
+              kapitel: findICDChapter(matchedCode, icdData.codes, icdData.chapters),
+              isParent: true
             });
           });
         }
@@ -171,24 +231,69 @@ export const searchICDCodes = async (input, year) => {
       
       // Check if code exists directly
       if (icdData.codes[code]) {
-        results.push({
-          kode: code,
-          beschreibung: icdData.codes[code].beschreibung,
-          gruppe: findICDGroup(code, icdData.groups),
-          kapitel: findICDChapter(code, icdData.codes, icdData.chapters)
-        });
+        const codeData = icdData.codes[code];
+        
+        // Wenn es ein nicht-endstelliger Code ist oder explizit als solcher markiert ist
+        if (codeData.isNonTerminal || !code.includes('.')) {
+          // Suche nach zugehörigen endstelligen Codes
+          console.log(`${code} ist ein nicht-endstelliger Code, suche nach allen zugehörigen Codes...`);
+          const childCodes = findChildICDCodes(code, icdData.codes);
+          
+          if (childCodes.length > 0) {
+            // Füge den übergeordneten Code hinzu
+            results.push({
+              kode: code,
+              beschreibung: codeData.beschreibung,
+              gruppe: findICDGroup(code, icdData.groups),
+              kapitel: findICDChapter(code, icdData.codes, icdData.chapters),
+              isParent: true // Markieren als übergeordneten Code
+            });
+            
+            // Füge alle endstelligen Codes hinzu
+            childCodes.forEach(childCode => {
+              // Überspringe den übergeordneten Code selbst in der Kindliste
+              if (childCode === code) return;
+              
+              results.push({
+                kode: childCode,
+                beschreibung: icdData.codes[childCode].beschreibung,
+                gruppe: findICDGroup(childCode, icdData.groups),
+                kapitel: findICDChapter(childCode, icdData.codes, icdData.chapters),
+                parentCode: code // Referenz zum übergeordneten Code
+              });
+            });
+          } else {
+            // Wenn keine Kinder gefunden wurden, füge nur den Code selbst hinzu
+            results.push({
+              kode: code,
+              beschreibung: codeData.beschreibung,
+              gruppe: findICDGroup(code, icdData.groups),
+              kapitel: findICDChapter(code, icdData.codes, icdData.chapters)
+            });
+          }
+        } else {
+          // Für endstellige Codes füge einfach den Code selbst hinzu
+          results.push({
+            kode: code,
+            beschreibung: codeData.beschreibung,
+            gruppe: findICDGroup(code, icdData.groups),
+            kapitel: findICDChapter(code, icdData.codes, icdData.chapters)
+          });
+        }
       } else {
-        // Check if it's a parent code without children
+        // Code nicht direkt gefunden, prüfe ob es ein übergeordneter Code ist
         const childCodes = findChildICDCodes(code, icdData.codes);
         
         if (childCodes.length > 0) {
-          // Add all child codes
+          console.log(`${code} wurde nicht direkt gefunden, aber ${childCodes.length} zugehörige Codes`);
+          // Füge alle gefundenen Kinder hinzu
           childCodes.forEach(childCode => {
             results.push({
               kode: childCode,
               beschreibung: icdData.codes[childCode].beschreibung,
               gruppe: findICDGroup(childCode, icdData.groups),
-              kapitel: findICDChapter(childCode, icdData.codes, icdData.chapters)
+              kapitel: findICDChapter(childCode, icdData.codes, icdData.chapters),
+              fromParent: code // Markieren, aus welchem übergeordneten Code dieser stammt
             });
           });
         } else {
@@ -197,6 +302,7 @@ export const searchICDCodes = async (input, year) => {
       }
     }
     
+    console.log(`ICD search complete, found ${results.length} results`);
     return {
       results,
       duplicatesRemoved,
@@ -222,13 +328,23 @@ export const searchOPSCodes = async (input, year) => {
   try {
     // Load or get cached data
     const opsData = await loadOPSData(year);
+    console.log(`OPS Data loaded, ${Object.keys(opsData.codes).length} codes available`);
     
     // Parse user input
     const { codes, duplicatesRemoved } = parseUserInput(input);
+    console.log(`Parsed input "${input}" into codes for OPS search:`, codes);
     
     // Process each code
     for (const rawCode of codes) {
       const code = normalizeCode(rawCode);
+      
+      // Skip non-OPS codes
+      if (detectCodeType(code) !== 'ops') {
+        console.log(`Skipping non-OPS code: ${code}`);
+        continue;
+      }
+      
+      console.log(`Processing OPS code "${rawCode}" (normalized: "${code}")`);
       
       // Handle wildcard search
       if (isWildcardSearch(code)) {
@@ -259,26 +375,73 @@ export const searchOPSCodes = async (input, year) => {
       
       // Check if code exists directly
       if (opsData.codes[code]) {
-        results.push({
-          kode: code,
-          beschreibung: opsData.codes[code].beschreibung,
-          gruppe: findOPSGroup(code, opsData.groups),
-          kapitel: findOPSChapter(code, opsData.chapters),
-          dreisteller: findOPSDreisteller(code, opsData.dreisteller)
-        });
+        const codeData = opsData.codes[code];
+        
+        // Wenn es ein nicht-endstelliger Code ist
+        if (codeData.isNonTerminal) {
+          console.log(`${code} ist ein nicht-endstelliger OPS-Code, suche nach allen zugehörigen Codes...`);
+          const childCodes = findChildOPSCodes(code, opsData.codes);
+          
+          if (childCodes.length > 0) {
+            // Füge den übergeordneten Code hinzu
+            results.push({
+              kode: code,
+              beschreibung: codeData.beschreibung,
+              gruppe: findOPSGroup(code, opsData.groups),
+              kapitel: findOPSChapter(code, opsData.chapters),
+              dreisteller: findOPSDreisteller(code, opsData.dreisteller),
+              isParent: true // Markieren als übergeordneten Code
+            });
+            
+            // Füge alle endstelligen Codes hinzu
+            childCodes.forEach(childCode => {
+              // Überspringe den übergeordneten Code selbst in der Kindliste
+              if (childCode === code) return;
+              
+              results.push({
+                kode: childCode,
+                beschreibung: opsData.codes[childCode].beschreibung,
+                gruppe: findOPSGroup(childCode, opsData.groups),
+                kapitel: findOPSChapter(childCode, opsData.chapters),
+                dreisteller: findOPSDreisteller(childCode, opsData.dreisteller),
+                parentCode: code // Referenz zum übergeordneten Code
+              });
+            });
+          } else {
+            // Wenn keine Kinder gefunden wurden, füge nur den Code selbst hinzu
+            results.push({
+              kode: code,
+              beschreibung: codeData.beschreibung,
+              gruppe: findOPSGroup(code, opsData.groups),
+              kapitel: findOPSChapter(code, opsData.chapters),
+              dreisteller: findOPSDreisteller(code, opsData.dreisteller)
+            });
+          }
+        } else {
+          // Für endstellige Codes füge einfach den Code selbst hinzu
+          results.push({
+            kode: code,
+            beschreibung: codeData.beschreibung,
+            gruppe: findOPSGroup(code, opsData.groups),
+            kapitel: findOPSChapter(code, opsData.chapters),
+            dreisteller: findOPSDreisteller(code, opsData.dreisteller)
+          });
+        }
       } else {
-        // Check if it's a parent code without children
+        // Code nicht direkt gefunden, prüfe ob es ein übergeordneter Code ist
         const childCodes = findChildOPSCodes(code, opsData.codes);
         
         if (childCodes.length > 0) {
-          // Add all child codes
+          console.log(`${code} wurde nicht direkt gefunden, aber ${childCodes.length} zugehörige Codes`);
+          // Füge alle gefundenen Kinder hinzu
           childCodes.forEach(childCode => {
             results.push({
               kode: childCode,
               beschreibung: opsData.codes[childCode].beschreibung,
               gruppe: findOPSGroup(childCode, opsData.groups),
               kapitel: findOPSChapter(childCode, opsData.chapters),
-              dreisteller: findOPSDreisteller(childCode, opsData.dreisteller)
+              dreisteller: findOPSDreisteller(childCode, opsData.dreisteller),
+              fromParent: code // Markieren, aus welchem übergeordneten Code dieser stammt
             });
           });
         } else {
@@ -287,6 +450,7 @@ export const searchOPSCodes = async (input, year) => {
       }
     }
     
+    console.log(`OPS search complete, found ${results.length} results`);
     return {
       results,
       duplicatesRemoved,

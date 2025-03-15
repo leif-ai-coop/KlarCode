@@ -30,8 +30,7 @@ const SearchBox = ({
   };
   
   const handleSubmit = () => {
-    onInputChange(inputValue);
-    onSearch();
+    onSearch(inputValue);
   };
   
   const handleClear = () => {
@@ -61,7 +60,7 @@ const SearchBox = ({
           value={inputValue}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
-          placeholder="Geben Sie ICD/OPS Codes ein (z.B. A00.1, 1-20.2) oder nutzen Sie Wildcards (z.B. A0*, 1-20*)"
+          placeholder="Geben Sie ICD/OPS Codes ein (z.B. A00.1, 1-20.2) oder nutzen Sie Wildcards (z.B. A0*, A0%, 1-20*)"
           multiline
           rows={3}
           InputProps={{
@@ -79,7 +78,7 @@ const SearchBox = ({
           }}
         />
         <Typography variant="caption" color="textSecondary">
-          Mehrere Codes können durch Komma, Semikolon, Leerzeichen oder Zeilenumbruch getrennt werden.
+          Mehrere Codes können durch Komma, Semikolon, Leerzeichen oder Zeilenumbruch getrennt werden. Verwenden Sie * oder % als Wildcards.
         </Typography>
       </Box>
       

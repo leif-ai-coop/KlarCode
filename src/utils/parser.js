@@ -13,11 +13,16 @@ export const parseICDCodes = (content) => {
       // Format: 3;N;X;01;A00;A00.-;A00;A00;Cholera;Cholera;;;V;V;1-002;2-001;3-003;4-002;001;9;9;9999;9999;9;J;J;J;J
       // Or for subcodes: 4;T;X;01;A00;A00.0;A00.0;A000;Cholera durch Vibrio cholerae O:1, Biovar cholerae;Cholera;...
       const kode = parts[6]; // A00.0 format
+      const originalNotation = parts[5]; // A00.- format für nicht-endstellige Codes
       const beschreibung = parts[8];
-
+      
+      // Markieren, ob es sich um einen nicht-endstelligen Code handelt
+      const isNonTerminal = originalNotation.includes('.-');
+      
       codesMap[kode] = {
         kode,
-        beschreibung
+        beschreibung,
+        isNonTerminal
       };
     }
   });
@@ -90,14 +95,19 @@ export const parseOPSCodes = (content) => {
 
   lines.forEach(line => {
     const parts = line.split(';');
-    if (parts.length >= 7) {
-      // Format: 4;T;N;1;1-10;1-10;1-100;N;Klinische Untersuchung in Allgemeinanästhesie;...
-      const kode = parts[6]; // 1-100 format
+    if (parts.length >= 9) { // Mind. 9 Teile für gültige OPS-Zeile
+      const kode = parts[6]; // z.B. 1-20a.31
       const beschreibung = parts[8];
-
+      const level = parseInt(parts[0], 10); // Die erste Zahl gibt das Level an (4, 5, 6 usw.)
+      
+      // Ein Code mit niedrigerem Level und/oder ohne Punkt ist wahrscheinlich ein übergeordneter Code
+      const isNonTerminal = level < 6 || !kode.includes('.');
+      
       codesMap[kode] = {
         kode,
-        beschreibung
+        beschreibung,
+        isNonTerminal,
+        level
       };
     }
   });

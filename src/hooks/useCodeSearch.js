@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { searchICDCodes, searchOPSCodes, getCurrentYear, loadICDData, loadOPSData } from '../services/dataService';
+import { parseUserInput, analyzeCodeTypes } from '../utils/search';
 
 /**
  * Custom hook for medical code searching
@@ -48,10 +49,19 @@ const useCodeSearch = () => {
   
   /**
    * Perform the search with the current input
+   * @param {string} [searchText] - Optional text to search for, uses searchInput state if not provided
    */
-  const handleSearch = useCallback(async () => {
-    if (!searchInput.trim()) {
+  const handleSearch = useCallback(async (searchText) => {
+    // Verwende searchText, wenn übergeben, sonst searchInput
+    const textToSearch = searchText || searchInput;
+    
+    if (!textToSearch.trim()) {
       return;
+    }
+    
+    // Aktualisiere den State-Wert, falls ein neuer Wert übergeben wurde
+    if (searchText && searchText !== searchInput) {
+      setSearchInput(searchText);
     }
     
     setIsLoading(true);
@@ -60,13 +70,13 @@ const useCodeSearch = () => {
     setDuplicatesRemoved(0);
     
     try {
-      // Search for both ICD and OPS codes
+      // Verwende textToSearch statt searchInput
       const [icdResults, opsResults] = await Promise.all([
-        searchICDCodes(searchInput, selectedYear),
-        searchOPSCodes(searchInput, selectedYear)
+        searchICDCodes(textToSearch, selectedYear),
+        searchOPSCodes(textToSearch, selectedYear)
       ]);
       
-      // Combine results and errors
+      // Rest der Funktion bleibt gleich...
       const combinedResults = [...icdResults.results, ...opsResults.results];
       const combinedErrors = [...icdResults.errors, ...opsResults.errors];
       const totalDuplicatesRemoved = icdResults.duplicatesRemoved + opsResults.duplicatesRemoved;

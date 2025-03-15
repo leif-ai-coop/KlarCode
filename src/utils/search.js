@@ -14,8 +14,19 @@ export const isValidICDFormat = (code) => {
  * @returns {boolean} - True if valid format, false otherwise
  */
 export const isValidOPSFormat = (code) => {
-  // Format: 1-20 or 1-202.00
-  return /^\d-\d{2,3}(\.\d{1,2})?$/.test(code);
+  // Erweiterte Validierung für OPS-Codes:
+  // - Beginnt mit Ziffer-Bindestrich-Ziffern: \d-\d+
+  // - Kann Buchstaben im Hauptteil haben: [a-z]*
+  // - Kann optional einen Punkt haben, gefolgt von:
+  //   - Ziffern und/oder Buchstaben: [a-z0-9]+
+  // 
+  // Beispiele:
+  // - 1-20 (einfacher Code)
+  // - 1-202.00 (Code mit Dezimalstelle)
+  // - 1-20a.31 (Code mit Buchstabe und Dezimalstelle)
+  // - 1-20b (Code mit Buchstabe ohne Dezimalstelle)
+  // - 1-20c.x, 1-20c.y (Code mit Buchstaben nach dem Punkt)
+  return /^\d-\d+[a-z]*(\.[a-z0-9]+)?$/i.test(code);
 };
 
 /**
@@ -55,7 +66,8 @@ export const parseUserInput = (input) => {
  * @returns {boolean} - True if wildcard, false otherwise
  */
 export const isWildcardSearch = (code) => {
-  return code.includes('*');
+  // Sowohl * als auch % als Wildcard-Zeichen erkennen
+  return code.includes('*') || code.includes('%');
 };
 
 /**
@@ -64,8 +76,11 @@ export const isWildcardSearch = (code) => {
  * @returns {RegExp} - Regular expression
  */
 export const wildcardToRegex = (pattern) => {
-  // Replace * with regex .*
-  const regexPattern = pattern.replace(/\*/g, '.*');
+  // Ersetze sowohl * als auch % mit regex .*
+  const regexPattern = pattern
+    .replace(/\*/g, '.*')
+    .replace(/%/g, '.*');
+  
   return new RegExp(`^${regexPattern}$`);
 };
 
@@ -90,12 +105,18 @@ export const findWildcardMatches = (pattern, codeMap) => {
  * @returns {string[]} - Array of child codes
  */
 export const findChildICDCodes = (parentCode, codeMap) => {
-  // For a code like A00, find all codes that start with A00.
+  // Für einen Code wie A04, finde alle Codes, die mit A04. beginnen
   const childPattern = `${parentCode}.`;
   
-  return Object.keys(codeMap).filter(code => {
-    return code.startsWith(childPattern);
+  const childCodes = Object.keys(codeMap).filter(code => {
+    // Entweder beginnt der Code mit dem gesuchten Muster...
+    return code.startsWith(childPattern) ||
+           // ...oder es handelt sich um einen exakten Match, der als nicht-endstellig markiert ist
+           (code === parentCode && codeMap[code].isNonTerminal);
   });
+  
+  console.log(`Finding child codes for ${parentCode}, found ${childCodes.length} children`);
+  return childCodes;
 };
 
 /**
@@ -105,14 +126,30 @@ export const findChildICDCodes = (parentCode, codeMap) => {
  * @returns {string[]} - Array of child codes
  */
 export const findChildOPSCodes = (parentCode, codeMap) => {
-  // For a code like 1-20, find all codes that start with 1-20.
-  // This could be 1-200, 1-201, 1-202, etc. or 1-20.00, 1-20.01, etc.
+  // Verschiedene Arten von Kindcodes bei OPS:
+  // 1. Codes, die mit dem Elterncode + Punkt beginnen: 1-20.0, 1-20.1 für 1-20
+  // 2. Codes, die mit dem Elterncode + Buchstabe beginnen: 1-20a, 1-20b für 1-20
+  // 3. Codes, die mit dem Elterncode + Buchstabe + Punkt beginnen: 1-20a.31 für 1-20a
   
-  return Object.keys(codeMap).filter(code => {
-    return code === parentCode || 
-           code.startsWith(`${parentCode}.`) || 
-           (code.startsWith(parentCode) && code.length > parentCode.length && !code.includes('.'));
+  const childCodes = Object.keys(codeMap).filter(code => {
+    // Exakter Match, aber als nicht-endstellig markiert
+    if (code === parentCode && codeMap[code].isNonTerminal) {
+      return true;
+    }
+    
+    // Kindcodes, die mit dem Elterncode beginnen
+    if (code !== parentCode && (
+        code.startsWith(parentCode + '.') || 
+        code.startsWith(parentCode) && /[a-z]/i.test(code.substring(parentCode.length, parentCode.length + 1))
+    )) {
+      return true;
+    }
+    
+    return false;
   });
+  
+  console.log(`Finding child codes for OPS ${parentCode}, found ${childCodes.length} children`);
+  return childCodes;
 };
 
 /**
@@ -220,4 +257,58 @@ export const findOPSDreisteller = (code, dreistellerMap) => {
   }
   
   return '';
+};
+
+/**
+ * Erkennt, ob ein Code ein ICD oder OPS Code ist
+ * @param {string} code - Der zu prüfende Code
+ * @returns {string} - 'icd', 'ops' oder 'unknown'
+ */
+export const detectCodeType = (code) => {
+  // Normalisieren
+  const normalized = normalizeCode(code);
+  
+  // Wenn der Code mit einem Buchstaben beginnt, ist es ein ICD-Code
+  if (/^[A-Z]/.test(normalized)) {
+    return 'icd';
+  }
+  
+  // Wenn der Code mit einer Zahl beginnt, ist es ein OPS-Code
+  if (/^\d/.test(normalized)) {
+    return 'ops';
+  }
+  
+  // Wenn nichts zutrifft, ist der Typ unbekannt
+  return 'unknown';
+};
+
+/**
+ * Prüft, ob eine Liste von Codes gemischte Typen enthält
+ * @param {Array<string>} codes - Liste der zu prüfenden Codes
+ * @returns {Object} - Enthält Informationen über die erkannten Codetypen
+ */
+export const analyzeCodeTypes = (codes) => {
+  let hasICD = false;
+  let hasOPS = false;
+  let unknownCodes = [];
+  
+  for (const code of codes) {
+    const type = detectCodeType(code);
+    
+    if (type === 'icd') {
+      hasICD = true;
+    } else if (type === 'ops') {
+      hasOPS = true;
+    } else {
+      unknownCodes.push(code);
+    }
+  }
+  
+  return {
+    hasICD,
+    hasOPS,
+    unknownCodes,
+    isMixed: hasICD && hasOPS,
+    type: hasICD && !hasOPS ? 'icd' : !hasICD && hasOPS ? 'ops' : 'mixed'
+  };
 }; 
