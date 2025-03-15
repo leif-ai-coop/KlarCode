@@ -31,7 +31,9 @@ const ResultsTable = ({
   results, 
   duplicatesRemoved, 
   showMore, 
-  toggleShowMore 
+  toggleShowMore,
+  searchType,
+  onCopyCode
 }) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -212,6 +214,16 @@ const ResultsTable = ({
             />
           }
           label="Dreisteller anzeigen (nur OPS)"
+        />
+        
+        <FormControlLabel
+          control={
+            <Switch
+              checked={showMore.childCodes}
+              onChange={() => toggleShowMore('childCodes')}
+            />
+          }
+          label="Untercodes anzeigen"
         />
       </Box>
       

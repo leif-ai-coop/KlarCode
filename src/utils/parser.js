@@ -185,29 +185,35 @@ export const parseOPSDreisteller = (content) => {
       const endCode = parts[2];
       const description = parts[3];
 
-      // Speichere den Bereich als ein Eintrag
+      // Speichere den Bereich als Schlüssel
       const rangeKey = `${startCode}-${endCode}`;
       dreistellerMap[rangeKey] = {
         chapter,
         startCode,
         endCode,
-        description
+        description,
+        isRange: true
       };
       
-      // Speichere auch jeden individuellen Dreisteller-Code in diesem Bereich
-      // Extrahiere die Basis-Codes (z.B. 5-55, 5-56, 5-57, 5-58, 5-59 aus dem Bereich 5-55 bis 5-59)
-      const startBase = parseInt(startCode.split('-')[1], 10);
-      const endBase = parseInt(endCode.split('-')[1], 10);
+      // Extrahiere die Basis der Codes (z.B. "5-" aus "5-55")
       const prefix = startCode.split('-')[0] + '-';
       
-      for (let i = startBase; i <= endBase; i++) {
-        const codeWithPadding = i.toString().padStart(2, '0');
-        const individualCode = prefix + codeWithPadding;
+      // Extrahiere die numerischen Teile (z.B. "55" aus "5-55" und "59" aus "5-59")
+      const startNum = parseInt(startCode.split('-')[1], 10);
+      const endNum = parseInt(endCode.split('-')[1], 10);
+      
+      // Speichere jeden einzelnen Dreisteller-Code in diesem Bereich
+      for (let i = startNum; i <= endNum; i++) {
+        // Formatiere die Nummer mit führender Null, falls nötig (z.B. "05" statt "5")
+        const numStr = i.toString().padStart(2, '0');
+        const individualCode = `${prefix}${numStr}`;
+        
+        // Speichere den individuellen Code mit Referenz zum Bereich
         dreistellerMap[individualCode] = {
           chapter,
           rangeKey,
           description,
-          isPartOfRange: true
+          isIndividualCode: true
         };
       }
     }

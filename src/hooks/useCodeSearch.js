@@ -15,8 +15,10 @@ const useCodeSearch = () => {
   const [showMore, setShowMore] = useState({
     kapitel: false,
     gruppe: false,
-    dreisteller: false
+    dreisteller: false,
+    childCodes: false
   });
+  const [searchType, setSearchType] = useState('ops'); // Default to 'ops'
   
   // Initialize data loading
   useEffect(() => {
@@ -38,6 +40,11 @@ const useCodeSearch = () => {
     
     initializeData();
   }, [selectedYear]);
+  
+  // Add this debugging effect
+  useEffect(() => {
+    console.log('DEBUG useCodeSearch - showMore state updated:', showMore);
+  }, [showMore]);
   
   /**
    * Handle search input change
@@ -70,16 +77,20 @@ const useCodeSearch = () => {
     setDuplicatesRemoved(0);
     
     try {
-      // Verwende textToSearch statt searchInput
+      // Übergebe showMore.childCodes an beide Suchfunktionen
       const [icdResults, opsResults] = await Promise.all([
-        searchICDCodes(textToSearch, selectedYear),
-        searchOPSCodes(textToSearch, selectedYear)
+        searchICDCodes(textToSearch, selectedYear, showMore.childCodes),
+        searchOPSCodes(textToSearch, selectedYear, showMore.childCodes)
       ]);
       
       // Rest der Funktion bleibt gleich...
       const combinedResults = [...icdResults.results, ...opsResults.results];
       const combinedErrors = [...icdResults.errors, ...opsResults.errors];
       const totalDuplicatesRemoved = icdResults.duplicatesRemoved + opsResults.duplicatesRemoved;
+      
+      // Determine search type from input
+      const { type } = analyzeCodeTypes(parseUserInput(textToSearch).codes);
+      setSearchType(type !== 'mixed' ? type : 'ops'); // Default to ops for mixed
       
       setSearchResults(combinedResults);
       setErrors(combinedErrors);
@@ -90,7 +101,7 @@ const useCodeSearch = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [searchInput, selectedYear]);
+  }, [searchInput, selectedYear, showMore.childCodes]);
   
   /**
    * Handle year change
@@ -102,14 +113,49 @@ const useCodeSearch = () => {
   
   /**
    * Toggle showing additional info columns
-   * @param {string} field - Field to toggle (kapitel, gruppe, dreisteller)
+   * @param {string} field - Field to toggle (kapitel, gruppe, dreisteller, childCodes)
    */
   const toggleShowMore = useCallback((field) => {
+    console.log(`DEBUG toggleShowMore called for ${field}, current value:`, showMore[field]);
+    
+    // Den neuen (invertierten) Wert berechnen
+    const newValue = !showMore[field];
+    
+    // State aktualisieren
     setShowMore(prev => ({
       ...prev,
-      [field]: !prev[field]
+      [field]: newValue
     }));
-  }, []);
+    
+    // Wenn childCodes geändert wurde und ein Suchbegriff vorhanden ist,
+    // führe eine neue Suche mit dem NEUEN Wert durch
+    if (field === 'childCodes' && searchInput.trim()) {
+      console.log(`DEBUG triggering new search with childCodes=${newValue}`);
+      
+      // Direkt mit dem neuen (invertierten) Wert suchen
+      setIsLoading(true);
+      setErrors([]);
+      
+      // Existierende Ergebnisse behalten, bis neue geladen sind
+      Promise.all([
+        searchICDCodes(searchInput, selectedYear, newValue),
+        searchOPSCodes(searchInput, selectedYear, newValue)
+      ]).then(([icdResults, opsResults]) => {
+        const combinedResults = [...icdResults.results, ...opsResults.results];
+        const combinedErrors = [...icdResults.errors, ...opsResults.errors];
+        const totalDuplicatesRemoved = icdResults.duplicatesRemoved + opsResults.duplicatesRemoved;
+        
+        setSearchResults(combinedResults);
+        setErrors(combinedErrors);
+        setDuplicatesRemoved(totalDuplicatesRemoved);
+      }).catch(error => {
+        console.error('Error during search:', error);
+        setErrors([`Fehler bei der Suche: ${error.message}`]);
+      }).finally(() => {
+        setIsLoading(false);
+      });
+    }
+  }, [searchInput, selectedYear, showMore]);
   
   /**
    * Clear all search results and inputs
@@ -129,6 +175,7 @@ const useCodeSearch = () => {
     duplicatesRemoved,
     selectedYear,
     showMore,
+    searchType,
     handleInputChange,
     handleSearch,
     handleYearChange,

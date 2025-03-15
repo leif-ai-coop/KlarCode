@@ -37,36 +37,15 @@ export const isValidOPSFormat = (code) => {
  * @returns {string} - Properly formatted OPS code
  */
 export const formatOPSCode = (code) => {
-  // Bereits formatiert (hat Bindestrich und Punkt)
-  if (code.includes('-') && code.includes('.')) {
+  // Bereits formatiert (hat Bindestrich)
+  if (code.includes('-')) {
     return code;
   }
   
   // Kein Bindestrich vorhanden, aber beginnt mit einer Ziffer
-  if (!code.includes('-') && /^\d/.test(code)) {
+  if (/^\d/.test(code)) {
     // Bindestrich nach der ersten Ziffer einfügen
     code = code.replace(/^(\d)/, '$1-');
-  }
-  
-  // Wenn kein Punkt vorhanden ist
-  if (!code.includes('.') && /^\d-\d+/.test(code)) {
-    // Typisches Format bei OPS-Codes:
-    // 5-787 -> keine Änderung nötig (es gibt keine Nachkommastelle)
-    // 5-7870h -> sollte 5-787.0h werden
-    // 5-78701 -> sollte 5-787.01 werden
-    
-    // Regulärer Ausdruck für den Teil nach dem Bindestrich
-    // Wir suchen 3 Ziffern, gefolgt von mindestens einer weiteren Ziffer
-    const match = code.match(/^\d-(\d{3})(\d+[a-zA-Z]*)$/);
-    
-    if (match) {
-      // Der erste Teil des Codes (z.B. "5-787")
-      const basePart = code.substring(0, match[0].indexOf(match[2]));
-      // Der Rest des Codes, der nach dem Punkt kommen soll (z.B. "0h")
-      const decimalPart = match[2];
-      
-      code = basePart + '.' + decimalPart;
-    }
   }
   
   return code;
@@ -183,7 +162,8 @@ export const findChildOPSCodes = (parentCode, codeMap) => {
     // Kindcodes, die mit dem Elterncode beginnen
     if (code !== parentCode && (
         code.startsWith(parentCode + '.') || 
-        code.startsWith(parentCode) && /[a-z]/i.test(code.substring(parentCode.length, parentCode.length + 1))
+        code.startsWith(parentCode) && /[a-z]/i.test(code.substring(parentCode.length, parentCode.length + 1)) ||
+        code.startsWith(parentCode) && /\d/.test(code.substring(parentCode.length, parentCode.length + 1))
     )) {
       return true;
     }
@@ -192,6 +172,7 @@ export const findChildOPSCodes = (parentCode, codeMap) => {
   });
   
   console.log(`Finding child codes for OPS ${parentCode}, found ${childCodes.length} children`);
+  console.log('Child codes found for ' + parentCode + ':', childCodes);
   return childCodes;
 };
 
@@ -360,32 +341,46 @@ export const analyzeCodeTypes = (codes) => {
  * Findet den Dreisteller-Bereich für einen OPS-Code
  * @param {string} code - Der OPS-Code
  * @param {Object} dreistellerMap - Map der Dreisteller-Bereiche
- * @returns {Object} - Dreisteller-Informationen oder null wenn nicht gefunden
+ * @returns {Object|null} - Dreisteller-Informationen oder null wenn nicht gefunden
  */
 export const findDreistellerRange = (code, dreistellerMap) => {
-  // Direkter Lookup für einzelne Dreisteller-Codes
-  if (dreistellerMap[code]) {
-    return dreistellerMap[code];
+  if (!code || !dreistellerMap) {
+    return null;
   }
   
   // Extrahiere den Dreisteller-Teil (z.B. "5-59" aus "5-590")
   const match = code.match(/^(\d-\d{2})/);
-  if (match) {
-    const dreistellerCode = match[1];
-    if (dreistellerMap[dreistellerCode]) {
-      return dreistellerMap[dreistellerCode];
-    }
+  if (!match) {
+    return null;
   }
   
-  // Finde den passenden Bereich
-  for (const rangeKey in dreistellerMap) {
-    if (rangeKey.includes('-') && !dreistellerMap[rangeKey].isPartOfRange) {
-      const [startCode, endCode] = rangeKey.split('-');
-      if (code >= startCode && code <= endCode) {
-        return dreistellerMap[rangeKey];
-      }
+  const dreistellerCode = match[1];
+  
+  // Prüfe, ob der Dreisteller direkt in der Map existiert
+  if (dreistellerMap[dreistellerCode]) {
+    return dreistellerMap[dreistellerCode];
+  }
+  
+  // Prüfe alle Bereiche in der Map
+  for (const key in dreistellerMap) {
+    // Überspringe Einträge, die keine Bereichsschlüssel sind
+    if (!key.includes('-') || key.length <= 3) {
+      continue;
+    }
+    
+    // Bereichsschlüssel haben das Format "startCode-endCode"
+    const [startCode, endCode] = key.split('-');
+    
+    // Prüfe, ob der Dreisteller-Code in diesem Bereich liegt
+    if (dreistellerCode >= startCode && dreistellerCode <= endCode) {
+      return dreistellerMap[key];
+    }
+    
+    // Alternativ: Prüfe, ob der vollständige Code in diesem Bereich liegt
+    if (code >= startCode && code <= endCode) {
+      return dreistellerMap[key];
     }
   }
   
   return null;
-} 
+}; 

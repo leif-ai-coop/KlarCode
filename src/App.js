@@ -113,6 +113,13 @@ function App() {
     handleClear,
   } = useCodeSearch();
   
+  // Add debugging before rendering ResultsTable
+  console.log('App.js - Before rendering ResultsTable:', {
+    searchResultsLength: searchResults.length, 
+    showMore,
+    toggleShowMoreType: typeof toggleShowMore
+  });
+  
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />

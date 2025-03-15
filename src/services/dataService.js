@@ -163,8 +163,32 @@ export const loadOPSData = async (year) => {
     const chapters = parseOPSChapters(chaptersText);
     const dreisteller = parseOPSDreisteller(dreistellerText);
     
-    // Cache the data
-    dataCache.ops[year] = { codes, groups, chapters, dreisteller };
+    // Integriere alle Datensätze in eine umfassende Datenstruktur
+    const integratedCodes = { ...codes };
+    
+    // Dreisteller hinzufügen, falls sie noch nicht in der Hauptcodeliste sind
+    for (const dreistellerCode in dreisteller) {
+      if (!integratedCodes[dreistellerCode]) {
+        integratedCodes[dreistellerCode] = {
+          kode: dreistellerCode,
+          beschreibung: dreisteller[dreistellerCode].description,
+          isNonTerminal: true, // Markieren als übergeordneten Code
+          isDreisteller: true, // Explizit als Dreisteller kennzeichnen
+          level: 3 // Dreisteller sind typischerweise Level 3
+        };
+      } else {
+        // Falls der Code bereits existiert, markiere ihn als Dreisteller
+        integratedCodes[dreistellerCode].isDreisteller = true;
+      }
+    }
+    
+    // Cache the data with the integrated codes
+    dataCache.ops[year] = { 
+      codes: integratedCodes,
+      groups, 
+      chapters, 
+      dreisteller 
+    };
     
     return dataCache.ops[year];
   } catch (error) {
@@ -177,9 +201,10 @@ export const loadOPSData = async (year) => {
  * Search for ICD-10 codes
  * @param {string} input - User input
  * @param {string} year - The year to search in
+ * @param {boolean} showChildCodes - Whether to include child codes in results (default: false)
  * @returns {Promise<SearchResult>} - Promise resolving to search results
  */
-export const searchICDCodes = async (input, year) => {
+export const searchICDCodes = async (input, year, showChildCodes = false) => {
   const results = [];
   const errors = [];
   
@@ -251,19 +276,21 @@ export const searchICDCodes = async (input, year) => {
               isParent: true // Markieren als übergeordneten Code
             });
             
-            // Füge alle endstelligen Codes hinzu
-            childCodes.forEach(childCode => {
-              // Überspringe den übergeordneten Code selbst in der Kindliste
-              if (childCode === code) return;
-              
-              results.push({
-                kode: childCode,
-                beschreibung: icdData.codes[childCode].beschreibung,
-                gruppe: findICDGroup(childCode, icdData.groups),
-                kapitel: findICDChapter(childCode, icdData.codes, icdData.chapters),
-                parentCode: code // Referenz zum übergeordneten Code
+            // Füge alle endstelligen Codes hinzu, aber nur wenn showChildCodes aktiviert ist
+            if (showChildCodes) {
+              childCodes.forEach(childCode => {
+                // Überspringe den übergeordneten Code selbst in der Kindliste
+                if (childCode === code) return;
+                
+                results.push({
+                  kode: childCode,
+                  beschreibung: icdData.codes[childCode].beschreibung,
+                  gruppe: findICDGroup(childCode, icdData.groups),
+                  kapitel: findICDChapter(childCode, icdData.codes, icdData.chapters),
+                  parentCode: code // Referenz zum übergeordneten Code
+                });
               });
-            });
+            }
           } else {
             // Wenn keine Kinder gefunden wurden, füge nur den Code selbst hinzu
             results.push({
@@ -288,16 +315,28 @@ export const searchICDCodes = async (input, year) => {
         
         if (childCodes.length > 0) {
           console.log(`${code} wurde nicht direkt gefunden, aber ${childCodes.length} zugehörige Codes`);
-          // Füge alle gefundenen Kinder hinzu
-          childCodes.forEach(childCode => {
-            results.push({
-              kode: childCode,
-              beschreibung: icdData.codes[childCode].beschreibung,
-              gruppe: findICDGroup(childCode, icdData.groups),
-              kapitel: findICDChapter(childCode, icdData.codes, icdData.chapters),
-              fromParent: code // Markieren, aus welchem übergeordneten Code dieser stammt
+          
+          // Nur Kinder hinzufügen, wenn showChildCodes aktiviert ist
+          if (showChildCodes) {
+            // Füge alle gefundenen Kinder hinzu
+            childCodes.forEach(childCode => {
+              results.push({
+                kode: childCode,
+                beschreibung: icdData.codes[childCode].beschreibung,
+                gruppe: findICDGroup(childCode, icdData.groups),
+                kapitel: findICDChapter(childCode, icdData.codes, icdData.chapters),
+                fromParent: code // Markieren, aus welchem übergeordneten Code dieser stammt
+              });
             });
-          });
+          } else {
+            // Wenn showChildCodes nicht aktiviert ist, füge den "virtuellen" Elterneintrag hinzu
+            results.push({
+              kode: code,
+              beschreibung: `Übergeordneter Code mit ${childCodes.length} Untercodes`,
+              isParent: true,
+              virtualParent: true
+            });
+          }
         } else {
           errors.push(`ICD-Code nicht im Jahr ${year} vorhanden: ${rawCode}`);
         }
@@ -321,9 +360,10 @@ export const searchICDCodes = async (input, year) => {
  * Search for OPS codes
  * @param {string} input - User input
  * @param {string} year - The year to search in
+ * @param {boolean} showChildCodes - Whether to include child codes in results (default: false)
  * @returns {Promise<SearchResult>} - Promise resolving to search results
  */
-export const searchOPSCodes = async (input, year) => {
+export const searchOPSCodes = async (input, year, showChildCodes = false) => {
   const results = [];
   const errors = [];
   
@@ -346,7 +386,7 @@ export const searchOPSCodes = async (input, year) => {
         continue;
       }
       
-      // Formatieren des OPS-Codes (neu)
+      // Formatieren des OPS-Codes
       const formattedCode = formatOPSCode(code);
       
       console.log(`Processing OPS code "${rawCode}" (normalized: "${code}", formatted: "${formattedCode}")`);
@@ -373,7 +413,7 @@ export const searchOPSCodes = async (input, year) => {
         continue;
       }
       
-      // Validate code format using the formatted code
+      // Validate code format
       if (!isValidOPSFormat(formattedCode)) {
         errors.push(`Formatfehler: OPS-Codes müssen im Format 1-20, 1-202.00 oder ähnlich eingegeben werden. Ungültig: ${rawCode}`);
         continue;
@@ -384,34 +424,39 @@ export const searchOPSCodes = async (input, year) => {
         const codeData = opsData.codes[formattedCode];
         
         // Finde den Dreisteller-Bereich
-        const dreistellerRange = findDreistellerRange(formattedCode, opsData.dreisteller);
+        const dreistellerInfo = findDreistellerRange(formattedCode, opsData.dreisteller);
         
-        // Füge den Code zu den Ergebnissen hinzu
+        // Füge den Hauptcode immer zu den Ergebnissen hinzu
         results.push({
           kode: formattedCode,
           beschreibung: codeData.beschreibung,
-          gruppe: dreistellerRange ? dreistellerRange.description : findOPSGroup(formattedCode, opsData.groups),
+          gruppe: findOPSGroup(formattedCode, opsData.groups),
           kapitel: findOPSChapter(formattedCode, opsData.chapters),
-          dreistellerBereich: dreistellerRange ? `${dreistellerRange.startCode} - ${dreistellerRange.endCode}` : '',
-          dreisteller: dreistellerRange ? dreistellerRange.description || '' : '',
+          dreisteller: dreistellerInfo ? dreistellerInfo.description : '',
           isParent: codeData.isNonTerminal
         });
         
-        // Wenn es ein übergeordneter Code ist, finde und füge alle Kindcodes hinzu
-        if (codeData.isNonTerminal) {
+        // Wenn es ein übergeordneter Code ist und showChildCodes aktiviert ist,
+        // finde und füge alle Kindcodes hinzu
+        if (showChildCodes && codeData.isNonTerminal) {
+          console.log(`${formattedCode} ist ein nicht-endstelliger OPS-Code, suche nach allen zugehörigen Codes...`);
           const childCodes = findChildOPSCodes(formattedCode, opsData.codes);
           
           if (childCodes.length > 0) {
+            // Füge alle endstelligen Codes hinzu
             childCodes.forEach(childCode => {
-              const childData = opsData.codes[childCode];
+              // Überspringe den übergeordneten Code selbst in der Kindliste
+              if (childCode === formattedCode) return;
+              
+              const childDreistellerInfo = findDreistellerRange(childCode, opsData.dreisteller);
+              
               results.push({
                 kode: childCode,
-                beschreibung: childData.beschreibung,
-                gruppe: dreistellerRange ? dreistellerRange.description : findOPSGroup(childCode, opsData.groups),
+                beschreibung: opsData.codes[childCode].beschreibung,
+                gruppe: findOPSGroup(childCode, opsData.groups),
                 kapitel: findOPSChapter(childCode, opsData.chapters),
-                dreistellerBereich: dreistellerRange ? `${dreistellerRange.startCode} - ${dreistellerRange.endCode}` : '',
-                dreisteller: findDreistellerRange(childCode, opsData.dreisteller)?.description || '',
-                parentCode: formattedCode
+                dreisteller: childDreistellerInfo ? childDreistellerInfo.description : '',
+                parentCode: formattedCode // Referenz zum übergeordneten Code
               });
             });
           }
@@ -431,28 +476,30 @@ export const searchOPSCodes = async (input, year) => {
               beschreibung: dreistellerInfo.description,
               gruppe: dreistellerInfo.description,
               kapitel: findOPSChapter(dreistellerCode, opsData.chapters),
-              dreisteller: dreistellerInfo.description || '',
+              dreisteller: dreistellerInfo.description,
               isParent: true
             });
             
-            // Finde alle Kindcodes dieses Dreistellercodes
-            const childPattern = new RegExp(`^${dreistellerCode}\\d`);
-            const childCodes = Object.keys(opsData.codes).filter(code => 
-              childPattern.test(code)
-            );
-            
-            if (childCodes.length > 0) {
-              childCodes.forEach(childCode => {
-                const childData = opsData.codes[childCode];
-                results.push({
-                  kode: childCode,
-                  beschreibung: childData.beschreibung,
-                  gruppe: dreistellerInfo.description,
-                  kapitel: findOPSChapter(childCode, opsData.chapters),
-                  dreisteller: findDreistellerRange(childCode, opsData.dreisteller)?.description || '',
-                  parentCode: dreistellerCode
+            // Finde alle Kindcodes dieses Dreistellercodes, aber nur wenn showChildCodes aktiviert ist
+            if (showChildCodes) {
+              const childPattern = new RegExp(`^${dreistellerCode}\\d`);
+              const childCodes = Object.keys(opsData.codes).filter(code => 
+                childPattern.test(code)
+              );
+              
+              if (childCodes.length > 0) {
+                childCodes.forEach(childCode => {
+                  const childData = opsData.codes[childCode];
+                  results.push({
+                    kode: childCode,
+                    beschreibung: childData.beschreibung,
+                    gruppe: dreistellerInfo.description,
+                    kapitel: findOPSChapter(childCode, opsData.chapters),
+                    dreisteller: dreistellerInfo.description,
+                    parentCode: dreistellerCode
+                  });
                 });
-              });
+              }
             }
           } else {
             errors.push(`OPS-Code nicht im Jahr ${year} vorhanden: ${rawCode}`);
@@ -464,6 +511,7 @@ export const searchOPSCodes = async (input, year) => {
     }
     
     console.log(`OPS search complete, found ${results.length} results`);
+    console.log('OPS search results with showChildCodes=' + showChildCodes, results);
     return {
       results,
       duplicatesRemoved,
