@@ -23,7 +23,8 @@ import {
   findOPSGroup,
   findOPSDreisteller,
   detectCodeType,
-  formatOPSCode
+  formatOPSCode,
+  findDreistellerRange
 } from '../utils/search';
 
 // Cache für geladene Daten
@@ -364,7 +365,8 @@ export const searchOPSCodes = async (input, year) => {
               beschreibung: codeData.beschreibung,
               gruppe: findOPSGroup(matchedCode, opsData.groups),
               kapitel: findOPSChapter(matchedCode, opsData.chapters),
-              dreisteller: findOPSDreisteller(matchedCode, opsData.dreisteller)
+              dreisteller: findDreistellerRange(formattedCode, opsData.dreisteller)?.description || '',
+              isParent: codeData.isNonTerminal
             });
           });
         }
@@ -381,73 +383,80 @@ export const searchOPSCodes = async (input, year) => {
       if (opsData.codes[formattedCode]) {
         const codeData = opsData.codes[formattedCode];
         
-        // Wenn es ein nicht-endstelliger Code ist
+        // Finde den Dreisteller-Bereich
+        const dreistellerRange = findDreistellerRange(formattedCode, opsData.dreisteller);
+        
+        // Füge den Code zu den Ergebnissen hinzu
+        results.push({
+          kode: formattedCode,
+          beschreibung: codeData.beschreibung,
+          gruppe: dreistellerRange ? dreistellerRange.description : findOPSGroup(formattedCode, opsData.groups),
+          kapitel: findOPSChapter(formattedCode, opsData.chapters),
+          dreistellerBereich: dreistellerRange ? `${dreistellerRange.startCode} - ${dreistellerRange.endCode}` : '',
+          dreisteller: dreistellerRange ? dreistellerRange.description || '' : '',
+          isParent: codeData.isNonTerminal
+        });
+        
+        // Wenn es ein übergeordneter Code ist, finde und füge alle Kindcodes hinzu
         if (codeData.isNonTerminal) {
-          console.log(`${formattedCode} ist ein nicht-endstelliger OPS-Code, suche nach allen zugehörigen Codes...`);
           const childCodes = findChildOPSCodes(formattedCode, opsData.codes);
           
           if (childCodes.length > 0) {
-            // Füge den übergeordneten Code hinzu
-            results.push({
-              kode: formattedCode,
-              beschreibung: codeData.beschreibung,
-              gruppe: findOPSGroup(formattedCode, opsData.groups),
-              kapitel: findOPSChapter(formattedCode, opsData.chapters),
-              dreisteller: findOPSDreisteller(formattedCode, opsData.dreisteller),
-              isParent: true // Markieren als übergeordneten Code
-            });
-            
-            // Füge alle endstelligen Codes hinzu
             childCodes.forEach(childCode => {
-              // Überspringe den übergeordneten Code selbst in der Kindliste
-              if (childCode === formattedCode) return;
-              
+              const childData = opsData.codes[childCode];
               results.push({
                 kode: childCode,
-                beschreibung: opsData.codes[childCode].beschreibung,
-                gruppe: findOPSGroup(childCode, opsData.groups),
+                beschreibung: childData.beschreibung,
+                gruppe: dreistellerRange ? dreistellerRange.description : findOPSGroup(childCode, opsData.groups),
                 kapitel: findOPSChapter(childCode, opsData.chapters),
-                dreisteller: findOPSDreisteller(childCode, opsData.dreisteller),
-                parentCode: formattedCode // Referenz zum übergeordneten Code
+                dreistellerBereich: dreistellerRange ? `${dreistellerRange.startCode} - ${dreistellerRange.endCode}` : '',
+                dreisteller: findDreistellerRange(childCode, opsData.dreisteller)?.description || '',
+                parentCode: formattedCode
               });
             });
-          } else {
-            // Wenn keine Kinder gefunden wurden, füge nur den Code selbst hinzu
-            results.push({
-              kode: formattedCode,
-              beschreibung: codeData.beschreibung,
-              gruppe: findOPSGroup(formattedCode, opsData.groups),
-              kapitel: findOPSChapter(formattedCode, opsData.chapters),
-              dreisteller: findOPSDreisteller(formattedCode, opsData.dreisteller)
-            });
           }
-        } else {
-          // Für endstellige Codes füge einfach den Code selbst hinzu
-          results.push({
-            kode: formattedCode,
-            beschreibung: codeData.beschreibung,
-            gruppe: findOPSGroup(formattedCode, opsData.groups),
-            kapitel: findOPSChapter(formattedCode, opsData.chapters),
-            dreisteller: findOPSDreisteller(formattedCode, opsData.dreisteller)
-          });
         }
       } else {
-        // Code nicht direkt gefunden, prüfe ob es ein übergeordneter Code ist
-        const childCodes = findChildOPSCodes(formattedCode, opsData.codes);
+        // Wenn der Code nicht direkt gefunden wurde, prüfe auf Dreisteller
+        const dreistellerMatch = formattedCode.match(/^(\d-\d{2})$/);
         
-        if (childCodes.length > 0) {
-          console.log(`${formattedCode} wurde nicht direkt gefunden, aber ${childCodes.length} zugehörige Codes`);
-          // Füge alle gefundenen Kinder hinzu
-          childCodes.forEach(childCode => {
+        if (dreistellerMatch) {
+          const dreistellerCode = dreistellerMatch[1];
+          const dreistellerInfo = findDreistellerRange(dreistellerCode, opsData.dreisteller);
+          
+          if (dreistellerInfo) {
+            // Füge den Dreisteller selbst hinzu
             results.push({
-              kode: childCode,
-              beschreibung: opsData.codes[childCode].beschreibung,
-              gruppe: findOPSGroup(childCode, opsData.groups),
-              kapitel: findOPSChapter(childCode, opsData.chapters),
-              dreisteller: findOPSDreisteller(childCode, opsData.dreisteller),
-              fromParent: formattedCode // Markieren, aus welchem übergeordneten Code dieser stammt
+              kode: dreistellerCode,
+              beschreibung: dreistellerInfo.description,
+              gruppe: dreistellerInfo.description,
+              kapitel: findOPSChapter(dreistellerCode, opsData.chapters),
+              dreisteller: dreistellerInfo.description || '',
+              isParent: true
             });
-          });
+            
+            // Finde alle Kindcodes dieses Dreistellercodes
+            const childPattern = new RegExp(`^${dreistellerCode}\\d`);
+            const childCodes = Object.keys(opsData.codes).filter(code => 
+              childPattern.test(code)
+            );
+            
+            if (childCodes.length > 0) {
+              childCodes.forEach(childCode => {
+                const childData = opsData.codes[childCode];
+                results.push({
+                  kode: childCode,
+                  beschreibung: childData.beschreibung,
+                  gruppe: dreistellerInfo.description,
+                  kapitel: findOPSChapter(childCode, opsData.chapters),
+                  dreisteller: findDreistellerRange(childCode, opsData.dreisteller)?.description || '',
+                  parentCode: dreistellerCode
+                });
+              });
+            }
+          } else {
+            errors.push(`OPS-Code nicht im Jahr ${year} vorhanden: ${rawCode}`);
+          }
         } else {
           errors.push(`OPS-Code nicht im Jahr ${year} vorhanden: ${rawCode}`);
         }

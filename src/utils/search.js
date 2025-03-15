@@ -354,4 +354,38 @@ export const analyzeCodeTypes = (codes) => {
     isMixed: hasICD && hasOPS,
     type: hasICD && !hasOPS ? 'icd' : !hasICD && hasOPS ? 'ops' : 'mixed'
   };
-}; 
+};
+
+/**
+ * Findet den Dreisteller-Bereich für einen OPS-Code
+ * @param {string} code - Der OPS-Code
+ * @param {Object} dreistellerMap - Map der Dreisteller-Bereiche
+ * @returns {Object} - Dreisteller-Informationen oder null wenn nicht gefunden
+ */
+export const findDreistellerRange = (code, dreistellerMap) => {
+  // Direkter Lookup für einzelne Dreisteller-Codes
+  if (dreistellerMap[code]) {
+    return dreistellerMap[code];
+  }
+  
+  // Extrahiere den Dreisteller-Teil (z.B. "5-59" aus "5-590")
+  const match = code.match(/^(\d-\d{2})/);
+  if (match) {
+    const dreistellerCode = match[1];
+    if (dreistellerMap[dreistellerCode]) {
+      return dreistellerMap[dreistellerCode];
+    }
+  }
+  
+  // Finde den passenden Bereich
+  for (const rangeKey in dreistellerMap) {
+    if (rangeKey.includes('-') && !dreistellerMap[rangeKey].isPartOfRange) {
+      const [startCode, endCode] = rangeKey.split('-');
+      if (code >= startCode && code <= endCode) {
+        return dreistellerMap[rangeKey];
+      }
+    }
+  }
+  
+  return null;
+} 

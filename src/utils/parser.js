@@ -170,7 +170,7 @@ export const parseOPSChapters = (content) => {
 /**
  * Parse OPS three-digit codes from a file
  * @param {string} content - Content of the OPS three-digit codes file
- * @returns {Object} - Map of OPS three-digit codes
+ * @returns {Object} - Map of OPS three-digit code ranges
  */
 export const parseOPSDreisteller = (content) => {
   const lines = content.split('\n').filter(line => line.trim() !== '');
@@ -179,14 +179,37 @@ export const parseOPSDreisteller = (content) => {
   lines.forEach(line => {
     const parts = line.split(';');
     if (parts.length >= 4) {
-      // Format: 1;1-10;1-10;Klinische Untersuchung
-      const code = parts[2];
+      // Format: 5;5-55;5-59;Andere Operationen an den Harnorganen
+      const chapter = parts[0];
+      const startCode = parts[1];
+      const endCode = parts[2];
       const description = parts[3];
 
-      dreistellerMap[code] = {
-        code,
+      // Speichere den Bereich als ein Eintrag
+      const rangeKey = `${startCode}-${endCode}`;
+      dreistellerMap[rangeKey] = {
+        chapter,
+        startCode,
+        endCode,
         description
       };
+      
+      // Speichere auch jeden individuellen Dreisteller-Code in diesem Bereich
+      // Extrahiere die Basis-Codes (z.B. 5-55, 5-56, 5-57, 5-58, 5-59 aus dem Bereich 5-55 bis 5-59)
+      const startBase = parseInt(startCode.split('-')[1], 10);
+      const endBase = parseInt(endCode.split('-')[1], 10);
+      const prefix = startCode.split('-')[0] + '-';
+      
+      for (let i = startBase; i <= endBase; i++) {
+        const codeWithPadding = i.toString().padStart(2, '0');
+        const individualCode = prefix + codeWithPadding;
+        dreistellerMap[individualCode] = {
+          chapter,
+          rangeKey,
+          description,
+          isPartOfRange: true
+        };
+      }
     }
   });
 
