@@ -9,13 +9,12 @@ export const isValidICDFormat = (code) => {
 };
 
 /**
- * Validate an OPS code format
+ * Validate an OPS code format (including extended variants)
  * @param {string} code - The code to validate
  * @returns {boolean} - True if valid format, false otherwise
  */
 export const isValidOPSFormat = (code) => {
-  // Erweiterte Validierung für OPS-Codes - already case insensitive with /i flag
-  return /^\d-\d+[a-z]*(\.[a-z0-9]+)?$/i.test(code);
+  return /^(\d-\d+[a-z]*|\d{4,}[a-z]*)(\.[a-z0-9]+)?$/i.test(code);
 };
 
 /**
@@ -24,21 +23,89 @@ export const isValidOPSFormat = (code) => {
  * @returns {string} - Korrekt formatierter OPS-Code
  */
 export const normalizeOPSCode = (code) => {
-  // Zuerst grundlegende Normalisierung durchführen
+  // Grundlegende Normalisierung
   let normalized = normalizeCode(code);
   
-  // Prüfen, ob es bereits ein korrekt formatierter OPS-Code ist
+  console.log(`Normalizing OPS code: "${code}" (after basic normalization: "${normalized}")`);
+  
+  // Spezialfall für "5378b8" or "5-378b8" - mit oder ohne Bindestrich
+  const patternWithLetterAndNumber = /^(\d)[-]?(\d+)([a-z])(\d+)$/i;
+  if (patternWithLetterAndNumber.test(normalized)) {
+    const matches = normalized.match(patternWithLetterAndNumber);
+    const firstDigit = matches[1];
+    const midDigits = matches[2];
+    const letter = matches[3];
+    const lastDigits = matches[4];
+    
+    const result = `${firstDigit}-${midDigits}.${letter}${lastDigits}`;
+    console.log(`Normalized special case: "${code}" -> "${result}"`);
+    return result;
+  }
+  
+  // Dann erst prüfen, ob es bereits ein korrekt formatierter OPS-Code ist
   if (isValidOPSFormat(normalized)) {
+    // Aber auch hier müssen wir sicherstellen, dass der Bindestrich vorhanden ist
+    if (!/^\d-/.test(normalized) && /^\d{4,}/.test(normalized)) {
+      // Es handelt sich um einen gültigen kompakten OPS-Code ohne Bindestrich
+      normalized = normalized.replace(/^(\d)/, '$1-');
+    }
     return normalized;
   }
   
-  // Fall 1: Nur der Bindestrich fehlt (z.B. "538a.90")
+  // Rest der vorhandenen Normalisierungslogik...
+  
+  // Spezialfall für Codes wie "5-378b8" - häufiges Muster mit Bindestrich und Buchstaben
+  const specialPattern = /^(\d-\d+)([a-z])(\d+)$/i;
+  if (specialPattern.test(normalized)) {
+    const [, prefix, letter, suffix] = normalized.match(specialPattern);
+    return `${prefix}.${letter}${suffix}`;
+  }
+  
+  // Fall 1: Kein Bindestrich, aber mit Punkt (z.B. "5378.b8")
+  if (/^\d{3,}[a-z]*\.[a-z0-9]+$/i.test(normalized)) {
+    // Bindestrich nach der ersten Ziffer einfügen
+    normalized = normalized.replace(/^(\d)/, '$1-');
+    return normalized;
+  }
+  
+  // Fall 2: Mit Bindestrich, aber ohne Punkt (z.B. "5-378b8")
+  if (/^\d-\d+[a-z][0-9a-z]*$/i.test(normalized)) {
+    // Finde die Position des ersten Buchstabens nach dem Bindestrich
+    const match = normalized.match(/^\d-\d+([a-z])([0-9a-z]*)$/i);
+    if (match) {
+      const prefix = normalized.substring(0, normalized.indexOf(match[1]));
+      const letter = match[1];
+      const rest = match[2];
+      // Füge einen Punkt vor dem Buchstaben ein
+      return `${prefix}.${letter}${rest}`;
+    }
+  }
+  
+  // Fall 3: Ohne Bindestrich und ohne Punkt, aber mit Buchstabe (z.B. "5378b8")
+  if (/^\d{3,}[a-z][0-9a-z]*$/i.test(normalized)) {
+    // Finde die Position der ersten Ziffer und des ersten Buchstabens
+    const match = normalized.match(/^(\d)(\d{2,})([a-z])([0-9a-z]*)$/i);
+    if (match) {
+      const firstDigit = match[1];
+      const midDigits = match[2];
+      const letter = match[3];
+      const rest = match[4];
+      // Füge Bindestrich und Punkt ein
+      return `${firstDigit}-${midDigits}.${letter}${rest}`;
+    }
+    // Kein Buchstabe mit Zahlen dahinter, nur Bindestrich einfügen
+    normalized = normalized.replace(/^(\d)/, '$1-');
+  }
+  
+  // Die bestehenden Normalisierungsfälle beibehalten
+  
+  // Fall 4: Nur der Bindestrich fehlt, aber Punkt vorhanden (z.B. "538a.90")
   if (/^\d{2,}[a-z]?\.\d+$/i.test(normalized)) {
     normalized = normalized.replace(/^(\d)/, '$1-');
     return normalized;
   }
   
-  // Fall 2: Nur der Punkt fehlt (z.B. "5-38a90")
+  // Fall 5: Nur der Punkt fehlt (z.B. "5-38a90")
   if (/^\d-\d{2,3}[a-z]?\d+$/i.test(normalized)) {
     const match = normalized.match(/^(\d-\d{2,3}[a-z]?)(\d+)$/i);
     if (match) {
@@ -49,7 +116,7 @@ export const normalizeOPSCode = (code) => {
     }
   }
   
-  // Fall 3: Kompakte Form ohne Trennzeichen (z.B. "538a90")
+  // Fall 6: Kompakte Form ohne Trennzeichen (z.B. "538a90")
   if (/^\d{3,}[a-z0-9]*$/i.test(normalized)) {
     // Bindestrich nach der ersten Ziffer einfügen
     normalized = normalized.replace(/^(\d)/, '$1-');
@@ -69,6 +136,8 @@ export const normalizeOPSCode = (code) => {
     }
   }
   
+  // Wichtig: Debugging-Output
+  console.log(`Final normalized result for "${code}": "${normalized}"`);
   return normalized;
 };
 
