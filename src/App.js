@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { 
   CssBaseline, 
   Container, 
@@ -22,7 +22,7 @@ const getDesignTokens = (mode) => ({
       ? {
           // Light mode
           primary: {
-            main: '#1976d2',
+            main: '#1A3344',
           },
           secondary: {
             main: '#9c27b0',
@@ -35,13 +35,13 @@ const getDesignTokens = (mode) => ({
       : {
           // Dark mode
           primary: {
-            main: '#90caf9',
+            main: '#6B9FA1',
           },
           secondary: {
             main: '#ce93d8',
           },
           background: {
-            default: '#121212',
+            default: '#1A3344',
             paper: '#1e1e1e',
           },
           text: {
@@ -54,7 +54,7 @@ const getDesignTokens = (mode) => ({
     MuiCssBaseline: {
       styleOverrides: (theme) => ({
         body: {
-          backgroundColor: mode === 'dark' ? '#121212' : '#f5f5f5',
+          backgroundColor: mode === 'dark' ? '#1A3344' : '#f5f5f5',
           transition: 'background-color 0.3s ease',
         },
       }),
@@ -66,20 +66,27 @@ const getDesignTokens = (mode) => ({
         },
       },
     },
+    MuiAppBar: {
+      styleOverrides: {
+        root: {
+          backgroundColor: '#1A3344',
+        },
+      },
+    },
   },
 });
 
 function App() {
   const [mode, setMode] = useState(() => {
-    // Check for saved theme preference or use system preference
+    // Check for saved theme preference
     const savedMode = localStorage.getItem('themeMode');
+    // Wenn eine gespeicherte Einstellung existiert, verwende diese
     if (savedMode) {
       return savedMode;
     }
     
-    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
-      ? 'dark'
-      : 'light';
+    // Sonst verwende immer 'light' als Standard, unabhängig von der Systemeinstellung
+    return 'light';
   });
   
   // Update localStorage when theme changes
@@ -120,47 +127,60 @@ function App() {
     toggleShowMoreType: typeof toggleShowMore
   });
   
+  const [darkMode, setDarkMode] = useState(false);
+
+  useEffect(() => {
+    // Dark-Mode-Klasse zum HTML-Element hinzufügen/entfernen
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [darkMode]);
+  
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Box 
-        sx={{ 
-          display: 'flex', 
-          flexDirection: 'column', 
-          minHeight: '100vh',
-          background: theme.palette.background.default
-        }}
-      >
-        <Header toggleColorMode={toggleColorMode} />
-        
-        <Container maxWidth="lg" sx={{ mt: 4, mb: 4, flex: 1 }}>
-          <SearchBox
-            searchInput={searchInput}
-            onInputChange={handleInputChange}
-            onSearch={handleSearch}
-            onClear={handleClear}
-            isLoading={isLoading}
-            selectedYear={selectedYear}
-            onYearChange={handleYearChange}
-            errors={errors}
-          />
+      <div className="min-h-screen bg-white dark:bg-brand-blue text-gray-900 dark:text-white">
+        <Box 
+          sx={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            minHeight: '100vh',
+            background: theme.palette.background.default
+          }}
+        >
+          <Header toggleColorMode={toggleColorMode} />
           
-          {isLoading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-              <CircularProgress />
-            </Box>
-          ) : (
-            <ResultsTable
-              results={searchResults}
-              duplicatesRemoved={duplicatesRemoved}
-              showMore={showMore}
-              toggleShowMore={toggleShowMore}
+          <Container maxWidth="lg" sx={{ mt: 4, mb: 4, flex: 1 }}>
+            <SearchBox
+              searchInput={searchInput}
+              onInputChange={handleInputChange}
+              onSearch={handleSearch}
+              onClear={handleClear}
+              isLoading={isLoading}
+              selectedYear={selectedYear}
+              onYearChange={handleYearChange}
+              errors={errors}
             />
-          )}
-        </Container>
-        
-        <Footer />
-      </Box>
+            
+            {isLoading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                <CircularProgress />
+              </Box>
+            ) : (
+              <ResultsTable
+                results={searchResults}
+                duplicatesRemoved={duplicatesRemoved}
+                showMore={showMore}
+                toggleShowMore={toggleShowMore}
+              />
+            )}
+          </Container>
+          
+          <Footer />
+        </Box>
+      </div>
     </ThemeProvider>
   );
 }

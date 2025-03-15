@@ -18,10 +18,10 @@ const Footer = () => {
       }}
     >
       <Typography variant="body2" color="text.secondary">
-        © {year} Medizinische Codes Lookup
+        © {year} KlarCode
       </Typography>
       <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-        Daten basierend auf ICD-10-GM und OPS Katalog {year >= 2025 ? year : 2025}
+        Daten basierend auf ICD-10-GM und OPS Katalog herausgegeben vom <Link href="https://www.bfarm.de" target="_blank" rel="noopener noreferrer">BfArM</Link>
       </Typography>
     </Box>
   );
