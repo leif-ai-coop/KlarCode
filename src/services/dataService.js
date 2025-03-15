@@ -263,65 +263,24 @@ export const searchICDCodes = async (input, year, showChildCodes = false) => {
       if (icdData.codes[code]) {
         const codeData = icdData.codes[code];
         
-        // Wenn es ein nicht-endstelliger Code ist oder explizit als solcher markiert ist
-        if (codeData.isNonTerminal || !code.includes('.')) {
-          // Suche nach zugehörigen endstelligen Codes
-          console.log(`${code} ist ein nicht-endstelliger Code, suche nach allen zugehörigen Codes...`);
-          const childCodes = findChildICDCodes(code, icdData.codes);
-          
-          if (childCodes.length > 0) {
-            // Füge den übergeordneten Code hinzu
-            results.push({
-              kode: code,
-              beschreibung: codeData.beschreibung,
-              gruppe: findICDGroup(code, icdData.groups),
-              kapitel: findICDChapter(code, icdData.codes, icdData.chapters),
-              isParent: true,
-              hasChildCodes: true,
-              isDirectInput: true,
-              isEndstellig: !codeData.isNonTerminal && !code.endsWith('-'),
-            });
-            
-            // Füge alle endstelligen Codes hinzu, aber nur wenn showChildCodes aktiviert ist
-            if (showChildCodes) {
-              childCodes.forEach(childCode => {
-                // Überspringe den übergeordneten Code selbst in der Kindliste
-                if (childCode === code) return;
-                
-                results.push({
-                  kode: childCode,
-                  beschreibung: icdData.codes[childCode].beschreibung,
-                  gruppe: findICDGroup(childCode, icdData.groups),
-                  kapitel: findICDChapter(childCode, icdData.codes, icdData.chapters),
-                  parentCode: code,
-                  isDirectInput: false,
-                  isExpandedChild: true,
-                  isEndstellig: !icdData.codes[childCode].isNonTerminal && !childCode.endsWith('-'),
-                });
-              });
-            }
-          } else {
-            // Wenn keine Kinder gefunden wurden, füge nur den Code selbst hinzu
-            results.push({
-              kode: code,
-              beschreibung: codeData.beschreibung,
-              gruppe: findICDGroup(code, icdData.groups),
-              kapitel: findICDChapter(code, icdData.codes, icdData.chapters),
-              isDirectInput: true,
-              isEndstellig: !codeData.isNonTerminal && !code.endsWith('-'),
-            });
-          }
-        } else {
-          // Für endstellige Codes füge einfach den Code selbst hinzu
-          results.push({
-            kode: code,
-            beschreibung: codeData.beschreibung,
-            gruppe: findICDGroup(code, icdData.groups),
-            kapitel: findICDChapter(code, icdData.codes, icdData.chapters),
-            isDirectInput: true,
-            isEndstellig: !codeData.isNonTerminal && !code.endsWith('-'),
-          });
-        }
+        // Prüfen, ob der Code selbst existiert
+        const childCodes = findChildICDCodes(code, icdData.codes);
+        
+        // Prüfen, ob es tatsächlich Kind-Codes gibt, die nicht der Code selbst sind
+        const hasRealChildren = childCodes.some(childCode => childCode !== code);
+        
+        results.push({
+          kode: code,
+          beschreibung: codeData.beschreibung,
+          gruppe: findICDGroup(code, icdData.groups),
+          kapitel: findICDChapter(code, icdData.codes, icdData.chapters),
+          isParent: hasRealChildren, // Dies als Parent markieren, wenn es echte Kind-Codes hat
+          hasChildCodes: hasRealChildren, // Explizit markieren, ob es Kind-Codes hat
+          isDirectInput: true,
+          isEndstellig: !codeData.isNonTerminal && !code.endsWith('-'),
+        });
+        
+        // Rest der Funktion bleibt gleich...
       } else {
         // Code nicht direkt gefunden, prüfe ob es ein übergeordneter Code ist
         const childCodes = findChildICDCodes(code, icdData.codes);

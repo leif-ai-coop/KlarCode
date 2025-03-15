@@ -123,22 +123,35 @@ export const findWildcardMatches = (pattern, codeMap) => {
 /**
  * Find all child codes for a non-terminal ICD code
  * @param {string} parentCode - The parent code
- * @param {Object} codeMap - Map of all codes
+ * @param {Object} allCodes - Map of all codes
  * @returns {string[]} - Array of child codes
  */
-export const findChildICDCodes = (parentCode, codeMap) => {
-  // Für einen Code wie A04, finde alle Codes, die mit A04. beginnen
-  const childPattern = `${parentCode}.`;
+export const findChildICDCodes = (parentCode, allCodes) => {
+  // Normalisiere den Code für den Vergleich
+  const normalizedParentCode = normalizeCode(parentCode);
   
-  const childCodes = Object.keys(codeMap).filter(code => {
-    // Entweder beginnt der Code mit dem gesuchten Muster...
-    return code.startsWith(childPattern) ||
-           // ...oder es handelt sich um einen exakten Match, der als nicht-endstellig markiert ist
-           (code === parentCode && codeMap[code].isNonTerminal);
+  return Object.keys(allCodes).filter(code => {
+    // Exact match
+    if (code === normalizedParentCode) return true;
+    
+    // Check if it's a direct child (like L40.7 -> L40.70)
+    if (code.startsWith(normalizedParentCode + '.') || 
+        code.startsWith(normalizedParentCode.split('.')[0] + '.') && 
+        code.includes(normalizedParentCode.replace('.', ''))) {
+      return true;
+    }
+    
+    // Für ICD-Codes wie L40.7 -> L40.70, vergleiche ohne den Punkt
+    const withoutDotParent = normalizedParentCode.replace('.', '');
+    const withoutDotChild = code.replace('.', '');
+    
+    if (withoutDotChild.startsWith(withoutDotParent) && 
+        withoutDotChild !== withoutDotParent) {
+      return true;
+    }
+    
+    return false;
   });
-  
-  console.log(`Finding child codes for ${parentCode}, found ${childCodes.length} children`);
-  return childCodes;
 };
 
 /**
