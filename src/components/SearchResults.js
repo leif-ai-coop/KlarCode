@@ -196,7 +196,7 @@ const SearchResults = ({ results, searchType, onCopyCode, showMore, onToggleShow
             />
             <span className="slider"></span>
           </label>
-          <span>Untercodes anzeigen</span>
+          <span>Subcodes anzeigen</span>
         </div>
       </div>
       

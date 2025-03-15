@@ -83,6 +83,17 @@ export const getCurrentYear = async () => {
  * @returns {Promise} - Promise resolving to the loaded data
  */
 export const loadICDData = async (year) => {
+  // Sicherstellen, dass year ein String ist
+  if (year instanceof Promise) {
+    try {
+      year = await year; // Auf die Auflösung des Promise warten
+      console.log(`Resolved year promise to: ${year}`);
+    } catch (error) {
+      console.error("Error resolving year promise:", error);
+      throw new Error("Failed to resolve year promise");
+    }
+  }
+  
   // Check if data is already cached
   if (dataCache.icd[year]) {
     return dataCache.icd[year];
@@ -145,6 +156,17 @@ export const loadICDData = async (year) => {
  * @returns {Promise} - Promise resolving to the loaded data
  */
 export const loadOPSData = async (year) => {
+  // Sicherstellen, dass year ein String ist
+  if (year instanceof Promise) {
+    try {
+      year = await year; // Auf die Auflösung des Promise warten
+      console.log(`Resolved year promise to: ${year}`);
+    } catch (error) {
+      console.error("Error resolving year promise:", error);
+      throw new Error("Failed to resolve year promise");
+    }
+  }
+  
   // Check if data is already cached
   if (dataCache.ops[year]) {
     return dataCache.ops[year];
@@ -394,7 +416,7 @@ export const searchICDCodes = async (input, year, showChildCodes = false) => {
             // Wenn showChildCodes nicht aktiviert ist, füge den "virtuellen" Elterneintrag hinzu
             results.push({
               kode: formattedCode,
-              beschreibung: `Übergeordneter Code mit ${childCodes.length} Untercodes`,
+              beschreibung: `Übergeordneter Code mit ${childCodes.length} Subcodes`,
               isParent: true,
               virtualParent: true,
               isDirectInput: false,

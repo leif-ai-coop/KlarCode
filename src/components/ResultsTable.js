@@ -185,11 +185,11 @@ const ResultsTable = ({
   
   const getTooltipText = (row) => {
     if (row.isExpandedChild) {
-      return "Automatisch ergänzter Untercode";
+      return "Automatisch ergänzter Subcode";
     } else if (row.isParent && row.hasChildCodes && showMore.childCodes) {
       return expandedCodes[row.kode] ? 
-        "Klicken um Untercodes auszublenden" : 
-        "Klicken um Untercodes einzublenden";
+        "Klicken um Subcodes auszublenden" : 
+        "Klicken um Subcodes einzublenden";
     } else if (row.isDirectInput) {
       return "Direkt eingegebener Code";
     }
@@ -294,13 +294,13 @@ const ResultsTable = ({
               onChange={() => toggleShowMore('childCodes')}
             />
           }
-          label="Untercodes anzeigen"
+          label="Subcodes anzeigen"
         />
       </Box>
       
       {showMore.childCodes && (
         <Alert severity="info" sx={{ mb: 2 }}>
-          Klicken Sie auf einen Code, um dessen Untercodes ein- oder auszublenden.
+          Klicken Sie auf einen Code, um dessen Subcodes ein- oder auszublenden.
         </Alert>
       )}
       
@@ -321,7 +321,7 @@ const ResultsTable = ({
               variant="outlined" 
               size="small" 
               sx={{ mr: 1 }} 
-              label="Automatisch ergänzter Untercode" 
+              label="Automatisch ergänzter Subcode" 
             />
           </Box>
         </Box>
