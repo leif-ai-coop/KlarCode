@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   Paper,
   Table,
@@ -23,6 +23,8 @@ import {
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import { exportToCSV, exportToExcel } from '../utils/export';
+import AddIcon from '@mui/icons-material/Add';
+import RemoveIcon from '@mui/icons-material/Remove';
 
 /**
  * Component to display search results in a sortable table
@@ -41,6 +43,7 @@ const ResultsTable = ({
   const [orderBy, setOrderBy] = useState('kode');
   const [order, setOrder] = useState('asc');
   const [filter, setFilter] = useState('');
+  const [expandedCodes, setExpandedCodes] = useState({});
   
   const handleRequestSort = (property) => {
     const isAsc = orderBy === property && order === 'asc';
@@ -123,6 +126,74 @@ const ResultsTable = ({
       getExportHeaders(),
       `medizinische-codes-export-${new Date().toISOString().slice(0, 10)}.xlsx`
     );
+  };
+  
+  useEffect(() => {
+    if (results.length > 0) {
+      const parentCodes = results
+        .filter(row => row.isParent)
+        .reduce((acc, row) => {
+          acc[row.kode] = true;
+          return acc;
+        }, {});
+      setExpandedCodes(parentCodes);
+    }
+  }, [results]);
+  
+  useEffect(() => {
+    console.log("Current expanded codes:", expandedCodes);
+    console.log("Showing child codes:", showMore.childCodes);
+    
+    // Log information about each row that should be clickable
+    sortedResults.forEach(row => {
+      if (row.isParent || row.hasChildCodes) {
+        console.log(`Parent code ${row.kode}:`, {
+          isParent: row.isParent,
+          hasChildCodes: row.hasChildCodes,
+          isDirectInput: row.isDirectInput
+        });
+      }
+    });
+  }, [expandedCodes, showMore.childCodes, sortedResults]);
+  
+  const toggleExpand = (code) => {
+    setExpandedCodes(prev => ({
+      ...prev,
+      [code]: !prev[code]
+    }));
+  };
+  
+  const visibleResults = useMemo(() => {
+    return sortedResults.filter(row => {
+      // Always show directly entered codes and parent codes
+      if (row.isDirectInput || row.isParent) return true;
+      
+      // For child codes, only show if parent is expanded and showMore.childCodes is true
+      if (row.parentCode) {
+        // Log for debugging
+        console.log(`Checking visibility for child ${row.kode} of parent ${row.parentCode}:`, {
+          showMoreChildCodes: showMore.childCodes,
+          parentExpanded: expandedCodes[row.parentCode]
+        });
+        
+        return showMore.childCodes && expandedCodes[row.parentCode];
+      }
+      
+      return true;
+    });
+  }, [sortedResults, expandedCodes, showMore.childCodes]);
+  
+  const getTooltipText = (row) => {
+    if (row.isExpandedChild) {
+      return "Automatisch ergänzter Untercode";
+    } else if (row.isParent && row.hasChildCodes && showMore.childCodes) {
+      return expandedCodes[row.kode] ? 
+        "Klicken um Untercodes auszublenden" : 
+        "Klicken um Untercodes einzublenden";
+    } else if (row.isDirectInput) {
+      return "Direkt eingegebener Code";
+    }
+    return "";
   };
   
   if (!results.length) {
@@ -228,6 +299,12 @@ const ResultsTable = ({
       </Box>
       
       {showMore.childCodes && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          Klicken Sie auf einen Code, um dessen Untercodes ein- oder auszublenden.
+        </Alert>
+      )}
+      
+      {showMore.childCodes && (
         <Box sx={{ display: 'flex', alignItems: 'center', mt: 1, mb: 2, flexWrap: 'wrap', gap: 2 }}>
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
             <Chip 
@@ -319,7 +396,7 @@ const ResultsTable = ({
           </TableHead>
           
           <TableBody>
-            {sortedResults.map((row, index) => (
+            {visibleResults.map((row, index) => (
               <TableRow 
                 key={`${row.kode}-${index}`}
                 hover
@@ -330,17 +407,28 @@ const ResultsTable = ({
               >
                 <TableCell component="th" scope="row">
                   <Tooltip 
-                    title={row.isExpandedChild ? "Automatisch ergänzter Untercode" : ""}
+                    title={getTooltipText(row)}
                     placement="top"
                   >
                     <Chip 
                       label={row.kode} 
-                      color={
-                        row.isExpandedChild ? 'info' :
-                        'primary'
-                      }
+                      color={row.isExpandedChild ? 'info' : 'primary'}
                       variant={row.isDirectInput ? "filled" : "outlined"}
                       size="small"
+                      onClick={(e) => {
+                        if (showMore.childCodes && row.isParent && !row.isExpandedChild) {
+                          e.stopPropagation();
+                          toggleExpand(row.kode);
+                        }
+                      }}
+                      sx={{
+                        cursor: (showMore.childCodes && row.isParent && !row.isExpandedChild) 
+                                ? 'pointer' : 'default',
+                        '&:hover': {
+                          boxShadow: (showMore.childCodes && row.isParent && !row.isExpandedChild) 
+                                     ? 1 : 0
+                        }
+                      }}
                     />
                   </Tooltip>
                 </TableCell>

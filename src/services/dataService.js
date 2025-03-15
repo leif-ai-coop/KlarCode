@@ -244,6 +244,7 @@ export const searchICDCodes = async (input, year, showChildCodes = false) => {
               gruppe: findICDGroup(matchedCode, icdData.groups),
               kapitel: findICDChapter(matchedCode, icdData.codes, icdData.chapters),
               isParent: true,
+              hasChildCodes: true,
               isDirectInput: true,
               isEndstellig: !codeData.isNonTerminal && !code.endsWith('-'),
             });
@@ -276,6 +277,7 @@ export const searchICDCodes = async (input, year, showChildCodes = false) => {
               gruppe: findICDGroup(code, icdData.groups),
               kapitel: findICDChapter(code, icdData.codes, icdData.chapters),
               isParent: true,
+              hasChildCodes: true,
               isDirectInput: true,
               isEndstellig: !codeData.isNonTerminal && !code.endsWith('-'),
             });
@@ -451,6 +453,10 @@ export const searchOPSCodes = async (input, year, showChildCodes = false) => {
         // Finde den Dreisteller-Bereich
         const dreistellerInfo = findDreistellerRange(formattedCode, opsData.dreisteller);
         
+        // Check if the code has child codes
+        const childCodes = findChildOPSCodes(formattedCode, opsData.codes);
+        const hasChildren = childCodes.length > 0 && childCodes.some(c => c !== formattedCode);
+        
         // Füge den Hauptcode immer zu den Ergebnissen hinzu
         results.push({
           kode: formattedCode,
@@ -458,7 +464,8 @@ export const searchOPSCodes = async (input, year, showChildCodes = false) => {
           gruppe: findOPSGroup(formattedCode, opsData.groups),
           kapitel: findOPSChapter(formattedCode, opsData.chapters),
           dreisteller: dreistellerInfo ? dreistellerInfo.description : '',
-          isParent: codeData.isNonTerminal,
+          isParent: codeData.isNonTerminal || hasChildren,
+          hasChildCodes: hasChildren, // Explicitly mark if it has children
           isDirectInput: true,
           isEndstellig: !codeData.isNonTerminal && !formattedCode.endsWith('-'),
         });
