@@ -285,24 +285,49 @@ export const findOPSChapter = (code, chaptersMap) => {
  * @returns {string} - Group description or empty string if not found
  */
 export const findOPSGroup = (code, groupsMap) => {
-  // Extract base code (1-20 from 1-202.00)
-  const parts = code.split('.');
-  let baseCode = parts[0];
-  
-  // If it's a detailed code like 1-202, we need the base group like 1-20
-  if (baseCode.match(/\d-\d{3}/)) {
-    baseCode = baseCode.substring(0, 4); // Get 1-20 from 1-202
+  if (!code || !groupsMap) {
+    return '';
   }
   
-  // Find the exact group or a parent group
-  if (groupsMap[baseCode]) {
-    return groupsMap[baseCode].description;
+  // Extrahiere die ersten Zeichen des Codes (z.B. "5-38" aus "5-38a.90")
+  const codePrefix = code.split('.')[0].match(/^\d-\d{2}/)?.[0];
+  
+  if (!codePrefix) return '';
+  
+  // Gruppiere die Daten nach Kapitel für eine effiziente Suche
+  const groupsByChapter = {};
+  
+  // Alle möglichen (End)codes durchlaufen und nach Kapitel gruppieren
+  for (const endCode in groupsMap) {
+    // Für 5-39 extrahieren wir "5" als Kapitel
+    const chapter = endCode.split('-')[0];
+    
+    if (!groupsByChapter[chapter]) {
+      groupsByChapter[chapter] = [];
+    }
+    
+    groupsByChapter[chapter].push({
+      endCode,
+      description: groupsMap[endCode].description
+    });
   }
   
-  // If not found, try to find a parent group
-  for (const groupKey in groupsMap) {
-    if (baseCode.startsWith(groupKey)) {
-      return groupsMap[groupKey].description;
+  // Extrahiere das Kapitel des zu suchenden Codes
+  const codeChapter = codePrefix.split('-')[0];
+  
+  // Nur die Gruppen im selben Kapitel durchsuchen
+  const relevantGroups = groupsByChapter[codeChapter] || [];
+  
+  // Finde die passende Gruppe durch numerischen Vergleich
+  // Da wir nur die Endcodes haben, suchen wir nach dem ersten Endcode, der größer/gleich unserem Code ist
+  for (const group of relevantGroups) {
+    // Extrahiere die numerischen Teile für den Vergleich
+    const endCodeNum = parseInt(group.endCode.split('-')[1], 10);
+    const prefixNum = parseInt(codePrefix.split('-')[1], 10);
+    
+    // Wenn unser Code-Präfix kleiner oder gleich dem Endcode ist, haben wir eine Gruppe gefunden
+    if (prefixNum <= endCodeNum) {
+      return group.description;
     }
   }
   
