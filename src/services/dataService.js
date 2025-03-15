@@ -28,9 +28,6 @@ import {
   findDreistellerRange
 } from '../utils/search';
 
-// Fügen Sie den Jahre-Import hier hinzu
-import verfügbareJahre from '../data/jahre.json';
-
 // Cache für geladene Daten
 const dataCache = {
   icd: {},
@@ -43,6 +40,15 @@ const dataCache = {
  */
 export const getAvailableYears = async () => {
   try {
+    // JSON-Datei zur Laufzeit laden statt statischer Import
+    const response = await fetch('/data/jahre.json');
+    
+    if (!response.ok) {
+      throw new Error(`Failed to load years: ${response.status}`);
+    }
+    
+    const verfügbareJahre = await response.json();
+    
     // Sortiere die Jahre in absteigender Reihenfolge (neueste zuerst)
     const sortedYears = [...verfügbareJahre].sort((a, b) => b - a);
     console.log("Verfügbare Jahre aus jahre.json (absteigend):", sortedYears);
@@ -82,54 +88,23 @@ export const loadICDData = async (year) => {
   }
   
   try {
-    // Verschiedene Pfadvarianten testen
-    let baseUrl = `/data/${year}/icd10/`;
+    // Zurück zum ursprünglichen Pfad, der funktioniert hat
+    const baseUrl = `/data/${year}/icd10/`;
     
-    // Logging hinzufügen, um das Problem besser zu verstehen
-    console.log(`Attempting to load ICD data from: ${baseUrl}`);
+    console.log(`Loading ICD data from: ${baseUrl}`);
     
     // Load all required files
     const codesResponse = await fetch(`${baseUrl}icd10gm${year}syst_kodes.txt`);
     
     if (!codesResponse.ok) {
-      console.error(`Failed to load ICD-10 codes: ${codesResponse.status}, trying alternative path...`);
-      
-      // Alternative paths to try
-      baseUrl = `/src/data/${year}/icd10/`;
-      console.log(`Trying alternative path: ${baseUrl}`);
-      
-      const altCodesResponse = await fetch(`${baseUrl}icd10gm${year}syst_kodes.txt`);
-      
-      if (!altCodesResponse.ok) {
-        console.error(`Failed to load ICD-10 codes from alternative path: ${altCodesResponse.status}`);
-        throw new Error(`Failed to load ICD-10 data for ${year}`);
-      }
-      
-      console.log("Successfully loaded ICD data from alternative path!");
-      const codes = parseICDCodes(await altCodesResponse.text());
-      
-      // Load other files
-      const groupsResponse = await fetch(`${baseUrl}icd10gm${year}syst_gruppen.txt`);
-      const chaptersResponse = await fetch(`${baseUrl}icd10gm${year}syst_kapitel.txt`);
-      
-      if (!groupsResponse.ok || !chaptersResponse.ok) {
-        throw new Error(`Failed to load ICD-10 groups or chapters for ${year}`);
-      }
-      
-      const groups = parseICDGroups(await groupsResponse.text());
-      const chapters = parseICDChapters(await chaptersResponse.text());
-      
-      // Cache the data
-      dataCache.icd[year] = { codes, groups, chapters };
-      
-      return dataCache.icd[year];
+      console.error(`Failed to load ICD-10 codes: ${codesResponse.status}`);
+      throw new Error(`Failed to load ICD-10 data for ${year}`);
     }
     
-    // Ursprünglicher Code für den Fall, dass der erste Pfad funktioniert
-    console.log("Successfully loaded ICD data from original path!");
-    const codesText = await codesResponse.text();
-    const codes = parseICDCodes(codesText);
+    console.log("Successfully loaded ICD data!");
+    const codes = parseICDCodes(await codesResponse.text());
     
+    // Load other files
     const groupsResponse = await fetch(`${baseUrl}icd10gm${year}syst_gruppen.txt`);
     const chaptersResponse = await fetch(`${baseUrl}icd10gm${year}syst_kapitel.txt`);
     
@@ -137,12 +112,8 @@ export const loadICDData = async (year) => {
       throw new Error(`Failed to load ICD-10 groups or chapters for ${year}`);
     }
     
-    const groupsText = await groupsResponse.text();
-    const chaptersText = await chaptersResponse.text();
-    
-    // Parse the data
-    const groups = parseICDGroups(groupsText);
-    const chapters = parseICDChapters(chaptersText);
+    const groups = parseICDGroups(await groupsResponse.text());
+    const chapters = parseICDChapters(await chaptersResponse.text());
     
     // Cache the data
     dataCache.icd[year] = { codes, groups, chapters };
@@ -168,11 +139,14 @@ export const loadOPSData = async (year) => {
   }
   
   try {
+    // Zurück zum ursprünglichen Pfad, der funktioniert hat
+    const baseUrl = `/data/${year}/ops/`;
+    
     // Load all required files
-    const codesResponse = await fetch(`/data/${year}/ops/ops${year}syst_kodes.txt`);
-    const groupsResponse = await fetch(`/data/${year}/ops/ops${year}syst_gruppen.txt`);
-    const chaptersResponse = await fetch(`/data/${year}/ops/ops${year}syst_kapitel.txt`);
-    const dreistellerResponse = await fetch(`/data/${year}/ops/ops${year}syst_dreisteller.txt`);
+    const codesResponse = await fetch(`${baseUrl}ops${year}syst_kodes.txt`);
+    const groupsResponse = await fetch(`${baseUrl}ops${year}syst_gruppen.txt`);
+    const chaptersResponse = await fetch(`${baseUrl}ops${year}syst_kapitel.txt`);
+    const dreistellerResponse = await fetch(`${baseUrl}ops${year}syst_dreisteller.txt`);
     
     if (!codesResponse.ok || !groupsResponse.ok || !chaptersResponse.ok || !dreistellerResponse.ok) {
       throw new Error(`Failed to load OPS data for ${year}`);
