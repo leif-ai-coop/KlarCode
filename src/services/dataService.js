@@ -41,8 +41,8 @@ const dataCache = {
  */
 export const getAvailableYears = async () => {
   try {
-    // JSON-Datei zur Laufzeit laden statt statischer Import
-    const response = await fetch('/data/jahre.json');
+    // Relativen Pfad verwenden
+    const response = await fetch('./data/jahre.json');
     
     if (!response.ok) {
       throw new Error(`Failed to load years: ${response.status}`);
@@ -89,8 +89,8 @@ export const loadICDData = async (year) => {
   }
   
   try {
-    // Zurück zum ursprünglichen Pfad, der funktioniert hat
-    const baseUrl = `/data/${year}/icd10/`;
+    // Relativen Pfad verwenden
+    const baseUrl = `./data/${year}/icd10/`;
     
     console.log(`Loading ICD data from: ${baseUrl}`);
     
@@ -151,8 +151,8 @@ export const loadOPSData = async (year) => {
   }
   
   try {
-    // Zurück zum ursprünglichen Pfad, der funktioniert hat
-    const baseUrl = `/data/${year}/ops/`;
+    // Relativen Pfad verwenden
+    const baseUrl = `./data/${year}/ops/`;
     
     // Load all required files
     const codesResponse = await fetch(`${baseUrl}ops${year}syst_kodes.txt`);

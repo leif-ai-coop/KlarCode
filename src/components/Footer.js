@@ -21,7 +21,7 @@ const Footer = () => {
         © {year} KlarCode
       </Typography>
       <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-        Daten basierend auf ICD-10-GM und OPS Katalog herausgegeben vom <Link href="https://www.bfarm.de" target="_blank" rel="noopener noreferrer">BfArM</Link>
+        Daten: <Link href="https://www.bfarm.de/DE/Kodiersysteme/Klassifikationen/ICD/ICD-10-GM/_node.html" target="_blank" rel="noopener noreferrer">ICD-10-GM</Link> und <Link href="https://www.bfarm.de/DE/Kodiersysteme/Klassifikationen/OPS-ICHI/OPS/_node.html" target="_blank" rel="noopener noreferrer">OPS</Link> herausgegeben vom <Link href="https://www.bfarm.de" target="_blank" rel="noopener noreferrer">BfArM</Link>
       </Typography>
     </Box>
   );
