@@ -228,14 +228,24 @@ const ResultsTable = ({
       </Box>
       
       {showMore.childCodes && (
-        <Box sx={{ display: 'flex', alignItems: 'center', mt: 1, mb: 2 }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', mr: 3 }}>
-            <Chip color="primary" variant="filled" size="small" sx={{ mr: 1 }} label="Beispiel" />
-            <Typography variant="caption">Direkt eingegebener Code</Typography>
+        <Box sx={{ display: 'flex', alignItems: 'center', mt: 1, mb: 2, flexWrap: 'wrap', gap: 2 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+            <Chip 
+              color="primary" 
+              variant="filled" 
+              size="small" 
+              sx={{ mr: 1 }} 
+              label="Direkt eingegebener Code" 
+            />
           </Box>
           <Box sx={{ display: 'flex', alignItems: 'center' }}>
-            <Chip color="info" variant="outlined" size="small" sx={{ mr: 1 }} label="Beispiel" />
-            <Typography variant="caption">Automatisch ergänzter Untercode</Typography>
+            <Chip 
+              color="info" 
+              variant="outlined" 
+              size="small" 
+              sx={{ mr: 1 }} 
+              label="Automatisch ergänzter Untercode" 
+            />
           </Box>
         </Box>
       )}
