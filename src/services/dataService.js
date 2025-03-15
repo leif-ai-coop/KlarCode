@@ -24,6 +24,7 @@ import {
   findOPSDreisteller,
   detectCodeType,
   formatOPSCode,
+  formatICDCode,
   findDreistellerRange
 } from '../utils/search';
 
@@ -121,8 +122,6 @@ export const loadICDData = async (year) => {
     
     // Datenzusammenfassung ausgeben
     console.log(`Loaded ${Object.keys(codes).length} ICD codes`);
-    console.log(`Sample codes:`, Object.keys(codes).slice(0, 5));
-    
     return dataCache.icd[year];
   } catch (error) {
     console.error(`Error loading ICD data for ${year}:`, error);
@@ -227,11 +226,14 @@ export const searchICDCodes = async (input, year, showChildCodes = false) => {
         continue;
       }
       
-      console.log(`Processing ICD code "${rawCode}" (normalized: "${code}")`);
+      // Formatieren des ICD-Codes
+      const formattedCode = formatICDCode(code);
+      
+      console.log(`Processing ICD code "${rawCode}" (normalized: "${code}", formatted: "${formattedCode}")`);
       
       // Handle wildcard search
-      if (isWildcardSearch(code)) {
-        const matchedCodes = findWildcardMatches(code, icdData.codes);
+      if (isWildcardSearch(formattedCode)) {
+        const matchedCodes = findWildcardMatches(formattedCode, icdData.codes);
         
         if (matchedCodes.length === 0) {
           errors.push(`Keine passenden ICD-Codes für Muster: ${rawCode}`);
@@ -246,7 +248,7 @@ export const searchICDCodes = async (input, year, showChildCodes = false) => {
               isParent: true,
               hasChildCodes: true,
               isDirectInput: true,
-              isEndstellig: !codeData.isNonTerminal && !code.endsWith('-'),
+              isEndstellig: !codeData.isNonTerminal && !formattedCode.endsWith('-'),
             });
           });
         }
@@ -254,59 +256,86 @@ export const searchICDCodes = async (input, year, showChildCodes = false) => {
       }
       
       // Validate code format
-      if (!isValidICDFormat(code)) {
+      if (!isValidICDFormat(formattedCode)) {
         errors.push(`Formatfehler: ICD-Codes müssen im Format A00, A00.1 oder ähnlich eingegeben werden. Ungültig: ${rawCode}`);
         continue;
       }
       
       // Check if code exists directly
-      if (icdData.codes[code]) {
-        const codeData = icdData.codes[code];
+      if (icdData.codes[formattedCode]) {
+        const codeData = icdData.codes[formattedCode];
         
         // Prüfen, ob der Code selbst existiert
-        const childCodes = findChildICDCodes(code, icdData.codes);
+        const childCodes = findChildICDCodes(formattedCode, icdData.codes);
         
         // Prüfen, ob es tatsächlich Kind-Codes gibt, die nicht der Code selbst sind
-        const hasRealChildren = childCodes.some(childCode => childCode !== code);
+        const hasRealChildren = childCodes.some(childCode => childCode !== formattedCode);
         
         results.push({
-          kode: code,
+          kode: formattedCode,
           beschreibung: codeData.beschreibung,
-          gruppe: findICDGroup(code, icdData.groups),
-          kapitel: findICDChapter(code, icdData.codes, icdData.chapters),
+          gruppe: findICDGroup(formattedCode, icdData.groups),
+          kapitel: findICDChapter(formattedCode, icdData.codes, icdData.chapters),
           isParent: hasRealChildren, // Dies als Parent markieren, wenn es echte Kind-Codes hat
           hasChildCodes: hasRealChildren, // Explizit markieren, ob es Kind-Codes hat
           isDirectInput: true,
-          isEndstellig: !codeData.isNonTerminal && !code.endsWith('-'),
+          isEndstellig: !codeData.isNonTerminal && !formattedCode.endsWith('-'),
         });
         
-        // Rest der Funktion bleibt gleich...
+        // Wenn es ein übergeordneter Code ist und showChildCodes aktiviert ist,
+        // finde und füge alle Kindcodes hinzu
+        if (showChildCodes && hasRealChildren) {
+          console.log(`${formattedCode} hat ${childCodes.length} zugehörige Codes`);
+          
+          // Füge alle gefundenen Kinder hinzu
+          childCodes.forEach(childCode => {
+            // Überspringe den übergeordneten Code selbst in der Kindliste
+            if (childCode === formattedCode) return;
+            
+            const childData = icdData.codes[childCode];
+            if (!childData) return; // Überspringe nicht vorhandene Codes
+            
+            results.push({
+              kode: childCode,
+              beschreibung: childData.beschreibung,
+              gruppe: findICDGroup(childCode, icdData.groups),
+              kapitel: findICDChapter(childCode, icdData.codes, icdData.chapters),
+              parentCode: formattedCode,
+              isDirectInput: false,
+              isExpandedChild: true,
+              isEndstellig: !childData.isNonTerminal && !childCode.endsWith('-'),
+            });
+          });
+        }
       } else {
         // Code nicht direkt gefunden, prüfe ob es ein übergeordneter Code ist
-        const childCodes = findChildICDCodes(code, icdData.codes);
+        const childCodes = findChildICDCodes(formattedCode, icdData.codes);
         
         if (childCodes.length > 0) {
-          console.log(`${code} wurde nicht direkt gefunden, aber ${childCodes.length} zugehörige Codes`);
+          console.log(`${formattedCode} wurde nicht direkt gefunden, aber ${childCodes.length} zugehörige Codes`);
           
           // Nur Kinder hinzufügen, wenn showChildCodes aktiviert ist
           if (showChildCodes) {
             // Füge alle gefundenen Kinder hinzu
             childCodes.forEach(childCode => {
+              const childData = icdData.codes[childCode];
+              if (!childData) return; // Überspringe nicht vorhandene Codes
+              
               results.push({
                 kode: childCode,
-                beschreibung: icdData.codes[childCode].beschreibung,
+                beschreibung: childData.beschreibung,
                 gruppe: findICDGroup(childCode, icdData.groups),
                 kapitel: findICDChapter(childCode, icdData.codes, icdData.chapters),
-                fromParent: code,
+                fromParent: formattedCode,
                 isDirectInput: false,
                 isExpandedChild: true,
-                isEndstellig: !icdData.codes[childCode].isNonTerminal && !childCode.endsWith('-'),
+                isEndstellig: !childData.isNonTerminal && !childCode.endsWith('-'),
               });
             });
           } else {
             // Wenn showChildCodes nicht aktiviert ist, füge den "virtuellen" Elterneintrag hinzu
             results.push({
-              kode: code,
+              kode: formattedCode,
               beschreibung: `Übergeordneter Code mit ${childCodes.length} Untercodes`,
               isParent: true,
               virtualParent: true,

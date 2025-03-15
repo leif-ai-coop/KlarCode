@@ -396,4 +396,24 @@ export const findDreistellerRange = (code, dreistellerMap) => {
   }
   
   return null;
+};
+
+/**
+ * Format an ICD code by inserting a dot after the third character if missing
+ * @param {string} code - The ICD code to format
+ * @returns {string} - Properly formatted ICD code
+ */
+export const formatICDCode = (code) => {
+  // Bereits formatiert (enthält einen Punkt)
+  if (code.includes('.')) {
+    return code;
+  }
+  
+  // Code ist länger als 3 Zeichen und beginnt mit einem Buchstaben
+  if (code.length > 3 && /^[A-Z]/.test(code)) {
+    // Punkt nach der dritten Stelle einfügen
+    return code.substring(0, 3) + '.' + code.substring(3);
+  }
+  
+  return code;
 }; 
