@@ -1,0 +1,239 @@
+1;1-10;1-10;Klinische Untersuchung
+1;1-20;1-20;Neurologische Untersuchungen
+1;1-20;1-21;Epilepsiediagnostik
+1;1-20;1-22;Untersuchungen der Augen
+1;1-20;1-24;Untersuchungen im HNO-Bereich
+1;1-20;1-26;Untersuchungen der elektrophysiologischen Aktivität des Herzens
+1;1-20;1-27;Diagnostische Katheteruntersuchung an Herz und Kreislauf
+1;1-20;1-31;Funktionsuntersuchungen des Verdauungstraktes
+1;1-20;1-33;Untersuchung des Harntraktes
+1;1-40;1-40;Biopsie ohne Inzision an Nervensystem und endokrinen Organen
+1;1-40;1-41;Biopsie ohne Inzision an Auge, Ohr, Nase und Haut von Gesicht und Kopf
+1;1-40;1-42;Biopsie ohne Inzision an Mund, Mundhöhle, Larynx, Pharynx und blutbildenden Organen
+1;1-40;1-43;Biopsie ohne Inzision an respiratorischen Organen
+1;1-40;1-44;Biopsie ohne Inzision an den Verdauungsorganen
+1;1-40;1-46;Biopsie ohne Inzision an Harnorganen und männlichen Genitalorganen
+1;1-40;1-47;Biopsie ohne Inzision an weiblichen Genitalorganen
+1;1-40;1-48;Biopsie ohne Inzision an Knochen und Gelenken
+1;1-40;1-49;Biopsie ohne Inzision an anderen Organen und Geweben
+1;1-50;1-50;Biopsie an Mamma, Knochen und Muskeln durch Inzision
+1;1-50;1-51;Biopsie an Nervengewebe, Hypophyse, Corpus pineale durch Inzision und Trepanation von Schädelknochen
+1;1-50;1-52;Biopsie an Augen und Augenanhangsgebilden durch Inzision
+1;1-50;1-53;Biopsie an Ohr und Nase durch Inzision
+1;1-50;1-54;Biopsie an Mund, Mundhöhle und Pharynx durch Inzision
+1;1-50;1-55;Biopsie an anderen Verdauungsorganen, Zwerchfell und (Retro-)Peritoneum durch Inzision
+1;1-50;1-56;Biopsie an Harnwegen und männlichen Genitalorganen durch Inzision
+1;1-50;1-57;Biopsie an weiblichen Genitalorganen durch Inzision
+1;1-50;1-58;Biopsie an anderen Organen durch Inzision
+1;1-61;1-61;Diagnostische Endoskopie der oberen Atemwege
+1;1-61;1-62;Diagnostische Tracheobronchoskopie
+1;1-61;1-63;Diagnostische Endoskopie des oberen Verdauungstraktes
+1;1-61;1-64;Diagnostische Endoskopie der Gallen- und Pankreaswege
+1;1-61;1-65;Diagnostische Endoskopie des unteren Verdauungstraktes
+1;1-61;1-66;Diagnostische Endoskopie der Harnwege
+1;1-61;1-67;Diagnostische Endoskopie der weiblichen Genitalorgane
+1;1-61;1-68;Andere diagnostische Endoskopie
+1;1-61;1-69;Diagnostische Endoskopie durch Inzision und intraoperativ
+1;1-70;1-70;Provokationstestung
+1;1-70;1-71;Pneumologische Funktionsuntersuchungen
+1;1-70;1-76;Metabolische Funktionsuntersuchung
+1;1-70;1-77;Palliativmedizinische, geriatrische und frührehabilitative Funktionsuntersuchung
+1;1-70;1-79;Physiologische Funktionstests
+1;1-84;1-84;Diagnostische Punktion und Aspiration
+1;1-84;1-85;Andere diagnostische Punktion und Aspiration
+1;1-90;1-90;Psychosomatische, psychotherapeutische, (neuro-)psychologische, psychosoziale und testpsychologische Untersuchung
+1;1-90;1-91;Diagnostik bei chronischen Schmerzzuständen
+1;1-90;1-92;Medizinische Evaluation zur Transplantation
+1;1-90;1-93;Infektiologisches Monitoring und molekularbiologisch-mikrobiologische Diagnostik
+1;1-90;1-94;Komplexe Diagnostik
+1;1-90;1-99;Andere diagnostische Maßnahmen und Zusatzinformationen zu diagnostischen Maßnahmen
+3;3-03;3-03;Komplexe differenzialdiagnostische Sonographie mit digitaler Bild- und Videodokumentation
+3;3-03;3-05;Endosonographie
+3;3-10;3-10;Projektionsradiographie mit Spezialverfahren
+3;3-10;3-13;Projektionsradiographie mit Kontrastmittelverfahren
+3;3-20;3-20;Computertomographie [CT], nativ
+3;3-20;3-22;Computertomographie [CT] mit Kontrastmittel
+3;3-20;3-24;Computertomographie [CT], Spezialverfahren
+3;3-20;3-26;Elektronenstrahltomographie [EBT]
+3;3-30;3-30;Optische laserbasierte Verfahren
+3;3-30;3-31;Andere optische Verfahren
+3;3-60;3-60;Arteriographie
+3;3-60;3-61;Phlebographie
+3;3-60;3-62;Lymphographie
+3;3-60;3-69;Andere Darstellung des Gefäßsystems
+3;3-70;3-70;Szintigraphie
+3;3-70;3-72;Single-Photon-Emissionscomputertomographie [SPECT]
+3;3-70;3-73;Single-Photon-Emissionscomputertomographie mit Computertomographie [SPECT/CT]
+3;3-70;3-74;Positronenemissionstomographie [PET] mit Vollring-Scanner
+3;3-70;3-75;Positronenemissionstomographie mit Computertomographie [PET/CT]
+3;3-70;3-76;Sondenmessungen und Inkorporationsmessungen
+3;3-80;3-80;Magnetresonanztomographie [MRT], nativ
+3;3-80;3-82;Magnetresonanztomographie [MRT] mit Kontrastmittel
+3;3-80;3-84;Magnetresonanztomographie [MRT], Spezialverfahren
+3;3-90;3-90;Andere bildgebende Verfahren
+3;3-99;3-99;Zusatzinformationen zu bildgebenden Verfahren
+5;5-01;5-01;Inzision (Trepanation), Exzision und Destruktion an Schädel, Gehirn und Hirnhäuten
+5;5-01;5-02;Andere Operationen an Schädel, Gehirn und Hirnhäuten
+5;5-01;5-03;Operationen an Rückenmark, Rückenmarkhäuten und Spinalkanal
+5;5-01;5-04;Operationen an Nerven und Nervenganglien
+5;5-01;5-05;Andere Operationen an Nerven und Nervenganglien
+5;5-06;5-06;Operationen an Schilddrüse und Nebenschilddrüse
+5;5-06;5-07;Operationen an anderen endokrinen Drüsen
+5;5-08;5-08;Operationen an Tränendrüse und Tränenwegen
+5;5-08;5-09;Operationen an den Augenlidern
+5;5-08;5-10;Operationen an den Augenmuskeln
+5;5-08;5-11;Operationen an der Konjunktiva
+5;5-08;5-12;Operationen an der Kornea
+5;5-08;5-13;Operationen an Iris, Corpus ciliare, vorderer Augenkammer und Sklera
+5;5-08;5-14;Operationen an der Linse
+5;5-08;5-15;Operationen an Retina, Choroidea und Corpus vitreum
+5;5-08;5-16;Operationen an Orbita und Augapfel
+5;5-18;5-18;Operationen an Ohrmuschel und äußerem Gehörgang
+5;5-18;5-19;Mikrochirurgische Operationen am Mittelohr
+5;5-18;5-20;Andere Operationen an Mittel- und Innenohr
+5;5-21;5-21;Operationen an der Nase
+5;5-21;5-22;Operationen an den Nasennebenhöhlen
+5;5-23;5-23;Entfernung und Wiederherstellung von Zähnen
+5;5-23;5-24;Operationen an Zahnfleisch, Alveolen und Kiefer
+5;5-23;5-25;Operationen an der Zunge
+5;5-23;5-26;Operationen an Speicheldrüsen und Speicheldrüsenausführungsgängen
+5;5-23;5-27;Andere Operationen an Mund und Gesicht
+5;5-23;5-28;Operationen im Bereich des Naso- und Oropharynx
+5;5-29;5-29;Operationen am Pharynx
+5;5-29;5-30;Exzision und Resektion am Larynx
+5;5-29;5-31;Andere Larynxoperationen und Operationen an der Trachea und Zusatzinformationen zu Operationen an Larynx und Trachea
+5;5-32;5-32;Exzision und Resektion an Lunge und Bronchus
+5;5-32;5-33;Andere Operationen an Lunge und Bronchus und Zusatzinformationen zu Operationen an Lunge und Bronchus
+5;5-32;5-34;Operationen an Brustwand, Pleura, Mediastinum und Zwerchfell
+5;5-35;5-35;Operationen an Klappen und Septen des Herzens und herznaher Gefäße
+5;5-35;5-36;Operationen an den Koronargefäßen
+5;5-35;5-37;Rhythmuschirurgie und andere Operationen an Herz und Perikard
+5;5-38;5-38;Inzision, Exzision und Verschluss von Blutgefäßen
+5;5-38;5-39;Andere Operationen an Blutgefäßen und Zusatzinformationen zu Operationen an Blutgefäßen
+5;5-40;5-40;Operationen am Lymphgewebe
+5;5-40;5-41;Operationen an Milz und Knochenmark
+5;5-42;5-42;Operationen am Ösophagus
+5;5-42;5-43;Inzision, Exzision und Resektion am Magen
+5;5-42;5-44;Andere Operationen am Magen
+5;5-42;5-45;Inzision, Exzision, Resektion und Anastomose an Dünn- und Dickdarm
+5;5-42;5-46;Andere Operationen an Dünn- und Dickdarm und Zusatzinformationen zu Operationen am Darm
+5;5-42;5-47;Operationen an der Appendix
+5;5-42;5-48;Operationen am Rektum
+5;5-42;5-49;Operationen am Anus
+5;5-42;5-50;Operationen an der Leber
+5;5-42;5-51;Operationen an Gallenblase und Gallenwegen
+5;5-42;5-52;Operationen am Pankreas
+5;5-42;5-53;Verschluss abdominaler Hernien
+5;5-42;5-54;Andere Operationen in der Bauchregion und Zusatzinformationen zu Operationen am Verdauungstrakt
+5;5-55;5-55;Operationen an der Niere
+5;5-55;5-56;Operationen am Ureter
+5;5-55;5-57;Operationen an der Harnblase
+5;5-55;5-58;Operationen an der Urethra
+5;5-55;5-59;Andere Operationen an den Harnorganen
+5;5-60;5-60;Operationen an Prostata und Vesiculae seminales
+5;5-60;5-61;Operationen an Skrotum und Tunica vaginalis testis
+5;5-60;5-62;Operationen am Hoden
+5;5-60;5-63;Operationen an Funiculus spermaticus, Epididymis und Ductus deferens
+5;5-60;5-64;Operationen am Penis
+5;5-65;5-65;Operationen am Ovar
+5;5-65;5-66;Operationen an der Tuba uterina
+5;5-65;5-67;Operationen an der Cervix uteri
+5;5-65;5-68;Inzision, Exzision und Exstirpation des Uterus
+5;5-65;5-69;Andere Operationen am Uterus und Operationen an den Parametrien
+5;5-65;5-70;Operationen an Vagina und Douglasraum
+5;5-65;5-71;Operationen an der Vulva
+5;5-72;5-72;Entbindung aus Beckenendlage und instrumentelle Entbindung
+5;5-72;5-73;Andere Operationen zur Geburtseinleitung und unter der Geburt
+5;5-72;5-74;Sectio caesarea und Entwicklung des Kindes
+5;5-72;5-75;Andere geburtshilfliche Operationen
+5;5-76;5-76;Operationen bei Gesichtsschädelfrakturen
+5;5-76;5-77;Andere Operationen an Gesichtsschädelknochen
+5;5-78;5-78;Operationen an anderen Knochen
+5;5-78;5-79;Reposition von Fraktur und Luxation
+5;5-78;5-80;Offen chirurgische und andere Gelenkoperationen
+5;5-78;5-81;Arthroskopische Gelenkoperationen
+5;5-78;5-82;Endoprothetischer Gelenk- und Knochenersatz
+5;5-78;5-83;Operationen an der Wirbelsäule
+5;5-78;5-84;Operationen an der Hand
+5;5-78;5-85;Operationen an Muskeln, Sehnen, Faszien und Schleimbeuteln
+5;5-78;5-86;Replantation, Exartikulation und Amputation von Extremitäten, andere Operationen an den Bewegungsorganen und Zusatzinformationen zu Operationen an den Bewegungsorganen
+5;5-87;5-87;Exzision und Resektion der Mamma
+5;5-87;5-88;Andere Operationen an der Mamma
+5;5-89;5-89;Operationen an Haut und Unterhaut
+5;5-89;5-90;Operative Wiederherstellung und Rekonstruktion von Haut und Unterhaut
+5;5-89;5-91;Andere Operationen an Haut und Unterhaut
+5;5-89;5-92;Operationen an Haut und Unterhaut bei Verbrennungen und Verätzungen
+5;5-93;5-93;Angaben zum Transplantat und zu verwendeten Materialien
+5;5-93;5-98;Spezielle Operationstechniken und Operationen bei speziellen Versorgungssituationen
+5;5-93;5-99;Vorzeitiger Abbruch einer Operation
+6;6-00;6-00;Applikation von Medikamenten
+8;8-01;8-01;Applikation von Medikamenten und Nahrung
+8;8-01;8-02;Therapeutische Injektion
+8;8-03;8-03;Immuntherapie
+8;8-10;8-10;Fremdkörperentfernung
+8;8-10;8-11;Extrakorporale Stoßwellentherapie
+8;8-12;8-12;Manipulationen am Verdauungstrakt
+8;8-12;8-13;Manipulationen am Harntrakt
+8;8-14;8-14;Andere Formen von therapeutischer Katheterisierung und Kanüleneinlage
+8;8-14;8-15;Therapeutische Aspiration und Entleerung durch Punktion
+8;8-14;8-17;Spülung (Lavage)
+8;8-19;8-19;Verbände und Entfernung von erkranktem Gewebe an Haut und Unterhaut
+8;8-20;8-20;Geschlossene Reposition einer Fraktur und Gelenkluxation ohne Osteosynthese
+8;8-20;8-21;Forcierte Korrektur von Adhäsionen und Deformitäten
+8;8-20;8-22;Herstellung und Anpassung von Gesichtsepithesen
+8;8-31;8-31;Immobilisation mit Gipsverband
+8;8-31;8-39;Lagerungsbehandlung
+8;8-40;8-40;Extension am Skelett
+8;8-40;8-41;Extension der Wirbelsäule
+8;8-50;8-50;Kontrolle von Blutungen durch Tamponaden
+8;8-50;8-51;Manipulation an Fetus oder Uterus während der Gravidität oder direkt postpartal
+8;8-52;8-52;Strahlentherapie
+8;8-52;8-53;Nuklearmedizinische Therapie
+8;8-52;8-54;Zytostatische Chemotherapie, Immuntherapie und antiretrovirale Therapie
+8;8-55;8-55;Frührehabilitative Komplexbehandlung
+8;8-55;8-56;Physikalisch-therapeutische Einzelmaßnahmen
+8;8-55;8-60;Hyperthermie und Hypothermie
+8;8-63;8-63;Elektrostimulation des Nervensystems
+8;8-63;8-64;Elektrische Konversion des Herzrhythmus
+8;8-63;8-65;Elektrotherapie
+8;8-63;8-66;Dauer der Behandlung durch fokussierten Ultraschall
+8;8-70;8-70;Zugang bei maschineller Beatmung und Maßnahmen zum Offenhalten der Atemwege
+8;8-70;8-71;Maschinelle Beatmung und Atemunterstützung über Maske oder Tubus und Beatmungsentwöhnung
+8;8-70;8-72;Sauerstoffzufuhr
+8;8-77;8-77;Maßnahmen im Rahmen der Reanimation
+8;8-80;8-80;Transfusion von Blutzellen
+8;8-80;8-81;Transfusion von Plasma, Plasmabestandteilen und Infusion von Volumenersatzmitteln
+8;8-80;8-82;Plasmapherese, Adsorption und verwandte Verfahren
+8;8-80;8-83;Therapeutische Katheterisierung und Kanüleneinlage in Gefäße
+8;8-80;8-84;(Perkutan-)transluminale Stentimplantation
+8;8-80;8-85;Extrakorporale Zirkulation und Behandlung von Blut
+8;8-86;8-86;Autogene und allogene Stammzelltherapie und lokale Therapie mit Blutbestandteilen und Hepatozyten
+8;8-90;8-90;Anästhesie
+8;8-90;8-91;Schmerztherapie
+8;8-92;8-92;Neurologisches Monitoring
+8;8-92;8-93;Monitoring von Atmung, Herz und Kreislauf
+8;8-97;8-97;Multimodale Komplexbehandlung
+8;8-97;8-98;Sonstige multimodale Komplexbehandlung
+8;8-99;8-99;Zusatzinformationen zu nicht operativen therapeutischen Maßnahmen
+9;9-26;9-26;Geburtsbegleitende Maßnahmen
+9;9-26;9-27;Behandlung wegen Infertilität
+9;9-26;9-28;Behandlung während der Schwangerschaft
+9;9-31;9-31;Phoniatrische und pädaudiologische Komplexbehandlung
+9;9-31;9-32;Therapie von Stimm-, Sprach-, Sprech-, Schluckstörungen und Hörstörungen
+9;9-40;9-40;Psychosoziale, psychosomatische und neuropsychologische Therapie
+9;9-40;9-41;Psychotherapie
+9;9-50;9-50;Präventive Maßnahmen
+9;9-50;9-51;Ergänzende kommunikative Maßnahmen
+9;9-60;9-60;Regelbehandlung bei psychischen und psychosomatischen Störungen und Verhaltensstörungen bei Erwachsenen
+9;9-60;9-61;Intensivbehandlung bei psychischen und psychosomatischen Störungen und Verhaltensstörungen bei Erwachsenen
+9;9-60;9-62;Psychotherapeutische Komplexbehandlung bei psychischen und psychosomatischen Störungen und Verhaltensstörungen bei Erwachsenen
+9;9-60;9-63;Psychosomatisch-psychotherapeutische Komplexbehandlung bei psychischen und psychosomatischen Störungen und Verhaltensstörungen bei Erwachsenen
+9;9-60;9-64;Zusatzinformationen zur Behandlung bei psychischen und psychosomatischen Störungen und Verhaltensstörungen bei Erwachsenen
+9;9-65;9-65;Psychiatrisch-psychosomatische Regelbehandlung bei psychischen und psychosomatischen Störungen und Verhaltensstörungen bei Kindern und Jugendlichen
+9;9-65;9-67;Psychiatrisch-psychosomatische Intensivbehandlung bei psychischen und psychosomatischen Störungen und Verhaltensstörungen bei Kindern und Jugendlichen
+9;9-65;9-68;Psychiatrisch-psychosomatische Behandlung im besonderen Eltern-Kind-Setting bei psychischen und psychosomatischen Störungen und Verhaltensstörungen bei Kindern und Jugendlichen
+9;9-65;9-69;Zusatzinformationen zur Behandlung bei psychischen und psychosomatischen Störungen und Verhaltensstörungen bei Kindern und Jugendlichen
+9;9-70;9-70;Spezifische Behandlung bei psychischen und psychosomatischen Störungen und Verhaltensstörungen bei Erwachsenen
+9;9-80;9-80;Spezifische Behandlung bei psychischen und psychosomatischen Störungen und Verhaltensstörungen bei Kindern und Jugendlichen
+9;9-98;9-98;Pflegebedürftigkeit und teilstationäre pädiatrische Behandlung
+9;9-98;9-99;Obduktion und nicht belegte Schlüsselnummern

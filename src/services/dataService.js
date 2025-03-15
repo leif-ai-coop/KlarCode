@@ -1,0 +1,300 @@
+import { 
+  parseICDCodes, 
+  parseICDGroups, 
+  parseICDChapters,
+  parseOPSCodes,
+  parseOPSGroups,
+  parseOPSChapters,
+  parseOPSDreisteller
+} from '../utils/parser';
+
+import {
+  isValidICDFormat,
+  isValidOPSFormat,
+  normalizeCode,
+  parseUserInput,
+  isWildcardSearch,
+  findWildcardMatches,
+  findChildICDCodes,
+  findChildOPSCodes,
+  findICDChapter,
+  findICDGroup,
+  findOPSChapter,
+  findOPSGroup,
+  findOPSDreisteller
+} from '../utils/search';
+
+// Cache für geladene Daten
+const dataCache = {
+  icd: {},
+  ops: {}
+};
+
+/**
+ * Get the current year or fallback to 2025 if not available
+ * @returns {string} - The current year
+ */
+export const getCurrentYear = () => {
+  const currentYear = new Date().getFullYear();
+  return currentYear >= 2025 && currentYear <= 2026 ? currentYear.toString() : '2025';
+};
+
+/**
+ * Load all ICD-10 data for a specific year
+ * @param {string} year - The year to load data for
+ * @returns {Promise} - Promise resolving to the loaded data
+ */
+export const loadICDData = async (year) => {
+  // Check if data is already cached
+  if (dataCache.icd[year]) {
+    return dataCache.icd[year];
+  }
+  
+  try {
+    // Load all required files
+    const codesResponse = await fetch(`/data/${year}/icd10/icd10gm${year}syst_kodes.txt`);
+    const groupsResponse = await fetch(`/data/${year}/icd10/icd10gm${year}syst_gruppen.txt`);
+    const chaptersResponse = await fetch(`/data/${year}/icd10/icd10gm${year}syst_kapitel.txt`);
+    
+    if (!codesResponse.ok || !groupsResponse.ok || !chaptersResponse.ok) {
+      throw new Error(`Failed to load ICD-10 data for ${year}`);
+    }
+    
+    const codesText = await codesResponse.text();
+    const groupsText = await groupsResponse.text();
+    const chaptersText = await chaptersResponse.text();
+    
+    // Parse the data
+    const codes = parseICDCodes(codesText);
+    const groups = parseICDGroups(groupsText);
+    const chapters = parseICDChapters(chaptersText);
+    
+    // Cache the data
+    dataCache.icd[year] = { codes, groups, chapters };
+    
+    return dataCache.icd[year];
+  } catch (error) {
+    console.error(`Error loading ICD data for ${year}:`, error);
+    throw error;
+  }
+};
+
+/**
+ * Load all OPS data for a specific year
+ * @param {string} year - The year to load data for
+ * @returns {Promise} - Promise resolving to the loaded data
+ */
+export const loadOPSData = async (year) => {
+  // Check if data is already cached
+  if (dataCache.ops[year]) {
+    return dataCache.ops[year];
+  }
+  
+  try {
+    // Load all required files
+    const codesResponse = await fetch(`/data/${year}/ops/ops${year}syst_kodes.txt`);
+    const groupsResponse = await fetch(`/data/${year}/ops/ops${year}syst_gruppen.txt`);
+    const chaptersResponse = await fetch(`/data/${year}/ops/ops${year}syst_kapitel.txt`);
+    const dreistellerResponse = await fetch(`/data/${year}/ops/ops${year}syst_dreisteller.txt`);
+    
+    if (!codesResponse.ok || !groupsResponse.ok || !chaptersResponse.ok || !dreistellerResponse.ok) {
+      throw new Error(`Failed to load OPS data for ${year}`);
+    }
+    
+    const codesText = await codesResponse.text();
+    const groupsText = await groupsResponse.text();
+    const chaptersText = await chaptersResponse.text();
+    const dreistellerText = await dreistellerResponse.text();
+    
+    // Parse the data
+    const codes = parseOPSCodes(codesText);
+    const groups = parseOPSGroups(groupsText);
+    const chapters = parseOPSChapters(chaptersText);
+    const dreisteller = parseOPSDreisteller(dreistellerText);
+    
+    // Cache the data
+    dataCache.ops[year] = { codes, groups, chapters, dreisteller };
+    
+    return dataCache.ops[year];
+  } catch (error) {
+    console.error(`Error loading OPS data for ${year}:`, error);
+    throw error;
+  }
+};
+
+/**
+ * Search for ICD-10 codes
+ * @param {string} input - User input
+ * @param {string} year - The year to search in
+ * @returns {Promise<SearchResult>} - Promise resolving to search results
+ */
+export const searchICDCodes = async (input, year) => {
+  const results = [];
+  const errors = [];
+  
+  try {
+    // Load or get cached data
+    const icdData = await loadICDData(year);
+    
+    // Parse user input
+    const { codes, duplicatesRemoved } = parseUserInput(input);
+    
+    // Process each code
+    for (const rawCode of codes) {
+      const code = normalizeCode(rawCode);
+      
+      // Handle wildcard search
+      if (isWildcardSearch(code)) {
+        const matchedCodes = findWildcardMatches(code, icdData.codes);
+        
+        if (matchedCodes.length === 0) {
+          errors.push(`Keine passenden ICD-Codes für Muster: ${rawCode}`);
+        } else {
+          matchedCodes.forEach(matchedCode => {
+            const codeData = icdData.codes[matchedCode];
+            results.push({
+              kode: matchedCode,
+              beschreibung: codeData.beschreibung,
+              gruppe: findICDGroup(matchedCode, icdData.groups),
+              kapitel: findICDChapter(matchedCode, icdData.codes, icdData.chapters)
+            });
+          });
+        }
+        continue;
+      }
+      
+      // Validate code format
+      if (!isValidICDFormat(code)) {
+        errors.push(`Formatfehler: ICD-Codes müssen im Format A00, A00.1 oder ähnlich eingegeben werden. Ungültig: ${rawCode}`);
+        continue;
+      }
+      
+      // Check if code exists directly
+      if (icdData.codes[code]) {
+        results.push({
+          kode: code,
+          beschreibung: icdData.codes[code].beschreibung,
+          gruppe: findICDGroup(code, icdData.groups),
+          kapitel: findICDChapter(code, icdData.codes, icdData.chapters)
+        });
+      } else {
+        // Check if it's a parent code without children
+        const childCodes = findChildICDCodes(code, icdData.codes);
+        
+        if (childCodes.length > 0) {
+          // Add all child codes
+          childCodes.forEach(childCode => {
+            results.push({
+              kode: childCode,
+              beschreibung: icdData.codes[childCode].beschreibung,
+              gruppe: findICDGroup(childCode, icdData.groups),
+              kapitel: findICDChapter(childCode, icdData.codes, icdData.chapters)
+            });
+          });
+        } else {
+          errors.push(`ICD-Code nicht im Jahr ${year} vorhanden: ${rawCode}`);
+        }
+      }
+    }
+    
+    return {
+      results,
+      duplicatesRemoved,
+      errors
+    };
+  } catch (error) {
+    console.error('Error searching ICD codes:', error);
+    errors.push(`Fehler bei der Suche: ${error.message}`);
+    return { results, duplicatesRemoved: 0, errors };
+  }
+};
+
+/**
+ * Search for OPS codes
+ * @param {string} input - User input
+ * @param {string} year - The year to search in
+ * @returns {Promise<SearchResult>} - Promise resolving to search results
+ */
+export const searchOPSCodes = async (input, year) => {
+  const results = [];
+  const errors = [];
+  
+  try {
+    // Load or get cached data
+    const opsData = await loadOPSData(year);
+    
+    // Parse user input
+    const { codes, duplicatesRemoved } = parseUserInput(input);
+    
+    // Process each code
+    for (const rawCode of codes) {
+      const code = normalizeCode(rawCode);
+      
+      // Handle wildcard search
+      if (isWildcardSearch(code)) {
+        const matchedCodes = findWildcardMatches(code, opsData.codes);
+        
+        if (matchedCodes.length === 0) {
+          errors.push(`Keine passenden OPS-Codes für Muster: ${rawCode}`);
+        } else {
+          matchedCodes.forEach(matchedCode => {
+            const codeData = opsData.codes[matchedCode];
+            results.push({
+              kode: matchedCode,
+              beschreibung: codeData.beschreibung,
+              gruppe: findOPSGroup(matchedCode, opsData.groups),
+              kapitel: findOPSChapter(matchedCode, opsData.chapters),
+              dreisteller: findOPSDreisteller(matchedCode, opsData.dreisteller)
+            });
+          });
+        }
+        continue;
+      }
+      
+      // Validate code format
+      if (!isValidOPSFormat(code)) {
+        errors.push(`Formatfehler: OPS-Codes müssen im Format 1-20, 1-202.00 oder ähnlich eingegeben werden. Ungültig: ${rawCode}`);
+        continue;
+      }
+      
+      // Check if code exists directly
+      if (opsData.codes[code]) {
+        results.push({
+          kode: code,
+          beschreibung: opsData.codes[code].beschreibung,
+          gruppe: findOPSGroup(code, opsData.groups),
+          kapitel: findOPSChapter(code, opsData.chapters),
+          dreisteller: findOPSDreisteller(code, opsData.dreisteller)
+        });
+      } else {
+        // Check if it's a parent code without children
+        const childCodes = findChildOPSCodes(code, opsData.codes);
+        
+        if (childCodes.length > 0) {
+          // Add all child codes
+          childCodes.forEach(childCode => {
+            results.push({
+              kode: childCode,
+              beschreibung: opsData.codes[childCode].beschreibung,
+              gruppe: findOPSGroup(childCode, opsData.groups),
+              kapitel: findOPSChapter(childCode, opsData.chapters),
+              dreisteller: findOPSDreisteller(childCode, opsData.dreisteller)
+            });
+          });
+        } else {
+          errors.push(`OPS-Code nicht im Jahr ${year} vorhanden: ${rawCode}`);
+        }
+      }
+    }
+    
+    return {
+      results,
+      duplicatesRemoved,
+      errors
+    };
+  } catch (error) {
+    console.error('Error searching OPS codes:', error);
+    errors.push(`Fehler bei der Suche: ${error.message}`);
+    return { results, duplicatesRemoved: 0, errors };
+  }
+}; 
