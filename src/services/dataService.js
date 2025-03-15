@@ -22,7 +22,8 @@ import {
   findOPSChapter,
   findOPSGroup,
   findOPSDreisteller,
-  detectCodeType
+  detectCodeType,
+  formatOPSCode
 } from '../utils/search';
 
 // Cache für geladene Daten
@@ -344,11 +345,14 @@ export const searchOPSCodes = async (input, year) => {
         continue;
       }
       
-      console.log(`Processing OPS code "${rawCode}" (normalized: "${code}")`);
+      // Formatieren des OPS-Codes (neu)
+      const formattedCode = formatOPSCode(code);
+      
+      console.log(`Processing OPS code "${rawCode}" (normalized: "${code}", formatted: "${formattedCode}")`);
       
       // Handle wildcard search
-      if (isWildcardSearch(code)) {
-        const matchedCodes = findWildcardMatches(code, opsData.codes);
+      if (isWildcardSearch(formattedCode)) {
+        const matchedCodes = findWildcardMatches(formattedCode, opsData.codes);
         
         if (matchedCodes.length === 0) {
           errors.push(`Keine passenden OPS-Codes für Muster: ${rawCode}`);
@@ -367,36 +371,36 @@ export const searchOPSCodes = async (input, year) => {
         continue;
       }
       
-      // Validate code format
-      if (!isValidOPSFormat(code)) {
+      // Validate code format using the formatted code
+      if (!isValidOPSFormat(formattedCode)) {
         errors.push(`Formatfehler: OPS-Codes müssen im Format 1-20, 1-202.00 oder ähnlich eingegeben werden. Ungültig: ${rawCode}`);
         continue;
       }
       
       // Check if code exists directly
-      if (opsData.codes[code]) {
-        const codeData = opsData.codes[code];
+      if (opsData.codes[formattedCode]) {
+        const codeData = opsData.codes[formattedCode];
         
         // Wenn es ein nicht-endstelliger Code ist
         if (codeData.isNonTerminal) {
-          console.log(`${code} ist ein nicht-endstelliger OPS-Code, suche nach allen zugehörigen Codes...`);
-          const childCodes = findChildOPSCodes(code, opsData.codes);
+          console.log(`${formattedCode} ist ein nicht-endstelliger OPS-Code, suche nach allen zugehörigen Codes...`);
+          const childCodes = findChildOPSCodes(formattedCode, opsData.codes);
           
           if (childCodes.length > 0) {
             // Füge den übergeordneten Code hinzu
             results.push({
-              kode: code,
+              kode: formattedCode,
               beschreibung: codeData.beschreibung,
-              gruppe: findOPSGroup(code, opsData.groups),
-              kapitel: findOPSChapter(code, opsData.chapters),
-              dreisteller: findOPSDreisteller(code, opsData.dreisteller),
+              gruppe: findOPSGroup(formattedCode, opsData.groups),
+              kapitel: findOPSChapter(formattedCode, opsData.chapters),
+              dreisteller: findOPSDreisteller(formattedCode, opsData.dreisteller),
               isParent: true // Markieren als übergeordneten Code
             });
             
             // Füge alle endstelligen Codes hinzu
             childCodes.forEach(childCode => {
               // Überspringe den übergeordneten Code selbst in der Kindliste
-              if (childCode === code) return;
+              if (childCode === formattedCode) return;
               
               results.push({
                 kode: childCode,
@@ -404,35 +408,35 @@ export const searchOPSCodes = async (input, year) => {
                 gruppe: findOPSGroup(childCode, opsData.groups),
                 kapitel: findOPSChapter(childCode, opsData.chapters),
                 dreisteller: findOPSDreisteller(childCode, opsData.dreisteller),
-                parentCode: code // Referenz zum übergeordneten Code
+                parentCode: formattedCode // Referenz zum übergeordneten Code
               });
             });
           } else {
             // Wenn keine Kinder gefunden wurden, füge nur den Code selbst hinzu
             results.push({
-              kode: code,
+              kode: formattedCode,
               beschreibung: codeData.beschreibung,
-              gruppe: findOPSGroup(code, opsData.groups),
-              kapitel: findOPSChapter(code, opsData.chapters),
-              dreisteller: findOPSDreisteller(code, opsData.dreisteller)
+              gruppe: findOPSGroup(formattedCode, opsData.groups),
+              kapitel: findOPSChapter(formattedCode, opsData.chapters),
+              dreisteller: findOPSDreisteller(formattedCode, opsData.dreisteller)
             });
           }
         } else {
           // Für endstellige Codes füge einfach den Code selbst hinzu
           results.push({
-            kode: code,
+            kode: formattedCode,
             beschreibung: codeData.beschreibung,
-            gruppe: findOPSGroup(code, opsData.groups),
-            kapitel: findOPSChapter(code, opsData.chapters),
-            dreisteller: findOPSDreisteller(code, opsData.dreisteller)
+            gruppe: findOPSGroup(formattedCode, opsData.groups),
+            kapitel: findOPSChapter(formattedCode, opsData.chapters),
+            dreisteller: findOPSDreisteller(formattedCode, opsData.dreisteller)
           });
         }
       } else {
         // Code nicht direkt gefunden, prüfe ob es ein übergeordneter Code ist
-        const childCodes = findChildOPSCodes(code, opsData.codes);
+        const childCodes = findChildOPSCodes(formattedCode, opsData.codes);
         
         if (childCodes.length > 0) {
-          console.log(`${code} wurde nicht direkt gefunden, aber ${childCodes.length} zugehörige Codes`);
+          console.log(`${formattedCode} wurde nicht direkt gefunden, aber ${childCodes.length} zugehörige Codes`);
           // Füge alle gefundenen Kinder hinzu
           childCodes.forEach(childCode => {
             results.push({
@@ -441,7 +445,7 @@ export const searchOPSCodes = async (input, year) => {
               gruppe: findOPSGroup(childCode, opsData.groups),
               kapitel: findOPSChapter(childCode, opsData.chapters),
               dreisteller: findOPSDreisteller(childCode, opsData.dreisteller),
-              fromParent: code // Markieren, aus welchem übergeordneten Code dieser stammt
+              fromParent: formattedCode // Markieren, aus welchem übergeordneten Code dieser stammt
             });
           });
         } else {

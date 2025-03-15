@@ -30,6 +30,49 @@ export const isValidOPSFormat = (code) => {
 };
 
 /**
+ * Format an OPS code by:
+ * 1. Inserting a hyphen after the first digit if missing
+ * 2. Inserting a dot at the correct position if missing
+ * @param {string} code - The OPS code to format
+ * @returns {string} - Properly formatted OPS code
+ */
+export const formatOPSCode = (code) => {
+  // Bereits formatiert (hat Bindestrich und Punkt)
+  if (code.includes('-') && code.includes('.')) {
+    return code;
+  }
+  
+  // Kein Bindestrich vorhanden, aber beginnt mit einer Ziffer
+  if (!code.includes('-') && /^\d/.test(code)) {
+    // Bindestrich nach der ersten Ziffer einfügen
+    code = code.replace(/^(\d)/, '$1-');
+  }
+  
+  // Wenn kein Punkt vorhanden ist
+  if (!code.includes('.') && /^\d-\d+/.test(code)) {
+    // Typisches Format bei OPS-Codes:
+    // 5-787 -> keine Änderung nötig (es gibt keine Nachkommastelle)
+    // 5-7870h -> sollte 5-787.0h werden
+    // 5-78701 -> sollte 5-787.01 werden
+    
+    // Regulärer Ausdruck für den Teil nach dem Bindestrich
+    // Wir suchen 3 Ziffern, gefolgt von mindestens einer weiteren Ziffer
+    const match = code.match(/^\d-(\d{3})(\d+[a-zA-Z]*)$/);
+    
+    if (match) {
+      // Der erste Teil des Codes (z.B. "5-787")
+      const basePart = code.substring(0, match[0].indexOf(match[2]));
+      // Der Rest des Codes, der nach dem Punkt kommen soll (z.B. "0h")
+      const decimalPart = match[2];
+      
+      code = basePart + '.' + decimalPart;
+    }
+  }
+  
+  return code;
+};
+
+/**
  * Normalize a code by removing non-alphanumeric characters
  * @param {string} code - The code to normalize
  * @returns {string} - Normalized code
