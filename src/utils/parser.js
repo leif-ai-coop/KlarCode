@@ -15,6 +15,7 @@ export const parseICDCodes = (content) => {
       const kode = parts[6]; // A00.0 format
       const originalNotation = parts[5]; // A00.- format für nicht-endstellige Codes
       const beschreibung = parts[8];
+      const kapitel = parts[3]; // Kapitelnummer im 4. Feld (Index 3)
       
       // Markieren, ob es sich um einen nicht-endstelligen Code handelt
       const isNonTerminal = originalNotation.includes('.-');
@@ -22,7 +23,8 @@ export const parseICDCodes = (content) => {
       codesMap[kode] = {
         kode,
         beschreibung,
-        isNonTerminal
+        isNonTerminal,
+        kapitel // Kapitelinformation speichern
       };
     }
   });

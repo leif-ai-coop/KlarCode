@@ -197,16 +197,19 @@ export const findChildOPSCodes = (parentCode, codeMap) => {
  * @returns {string} - Chapter description or empty string if not found
  */
 export const findICDChapter = (code, codeMap, chaptersMap) => {
-  if (!codeMap[code]) return '';
+  if (!code || !codeMap[code] || !chaptersMap) return '';
   
-  // Extract chapter ID from the code metadata
-  // In ICD files, the chapter ID is typically in format "01"
-  // We'd need to extract this from the actual data structure based on your file format
-  // This is a placeholder implementation
-  const chapterId = code.startsWith('A') || code.startsWith('B') ? '01' : 
-                    code.startsWith('C') || code.startsWith('D') ? '02' : '';
+  // Hole die Kapitelnummer aus den Codedaten
+  const kapitelNr = codeMap[code].kapitel;
   
-  return chaptersMap[chapterId] ? chaptersMap[chapterId].description : '';
+  // Wenn keine Kapitelnummer vorhanden ist, zurück leeren String
+  if (!kapitelNr) return '';
+  
+  // Formatiere die Kapitelnummer als zweistellig (falls nicht bereits so)
+  const formattedKapitelNr = kapitelNr.padStart(2, '0');
+  
+  // Hole die Kapitelbeschreibung
+  return chaptersMap[formattedKapitelNr] ? chaptersMap[formattedKapitelNr].description : '';
 };
 
 /**
