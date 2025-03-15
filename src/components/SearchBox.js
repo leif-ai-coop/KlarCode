@@ -4,9 +4,6 @@ import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
 import { getAvailableYears } from '../services/dataService';
 
-/**
- * Search box component for entering medical codes
- */
 const SearchBox = ({ 
   searchInput, 
   onInputChange, 
@@ -20,14 +17,14 @@ const SearchBox = ({
   const [inputValue, setInputValue] = useState(searchInput);
   const [availableYears, setAvailableYears] = useState([]);
   const [loadingYears, setLoadingYears] = useState(true);
-  
+
   useEffect(() => {
     const loadYears = async () => {
       try {
         setLoadingYears(true);
         const years = await getAvailableYears();
         setAvailableYears(years);
-        
+
         if (years.length > 0 && !years.includes(selectedYear)) {
           onYearChange(years[0]);
         }
@@ -41,26 +38,32 @@ const SearchBox = ({
 
     loadYears();
   }, []);
-  
+
+  useEffect(() => {
+    if (inputValue.trim()) {
+      onSearch(inputValue);
+    }
+  }, [selectedYear]);
+
   const handleChange = (e) => {
     setInputValue(e.target.value);
   };
-  
+
   const handleKeyDown = (e) => {
     if (e.key === 'Enter') {
       handleSubmit();
     }
   };
-  
+
   const handleSubmit = () => {
     onSearch(inputValue);
   };
-  
+
   const handleClear = () => {
     setInputValue('');
     onClear();
   };
-  
+
   return (
     <Paper 
       elevation={3} 
@@ -74,7 +77,7 @@ const SearchBox = ({
       <Typography variant="h6" gutterBottom>
         ICD/OPS Code-Suche
       </Typography>
-      
+
       <Box sx={{ mb: 2 }}>
         <TextField
           fullWidth
@@ -104,7 +107,7 @@ const SearchBox = ({
           Mehrere Codes können durch Komma, Semikolon, Leerzeichen oder Zeilenumbruch getrennt werden. Verwenden Sie * oder % als Wildcards.
         </Typography>
       </Box>
-      
+
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 2 }}>
         <FormControl sx={{ minWidth: 120 }}>
           <InputLabel id="year-select-label">Jahr</InputLabel>
@@ -121,7 +124,7 @@ const SearchBox = ({
             ))}
           </Select>
         </FormControl>
-        
+
         <Button
           variant="contained"
           color="primary"
@@ -131,7 +134,7 @@ const SearchBox = ({
         >
           {isLoading ? 'Suche läuft...' : 'Suchen'}
         </Button>
-        
+
         <Button
           variant="outlined"
           color="secondary"
@@ -141,7 +144,7 @@ const SearchBox = ({
           Löschen
         </Button>
       </Box>
-      
+
       {errors.length > 0 && (
         <Box sx={{ mt: 2 }}>
           {errors.map((error, index) => (
@@ -159,4 +162,4 @@ const SearchBox = ({
   );
 };
 
-export default SearchBox; 
+export default SearchBox;
