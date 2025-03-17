@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { 
   CssBaseline, 
   Container, 
@@ -111,8 +111,10 @@ function App() {
     isLoading,
     errors,
     duplicatesRemoved,
+    removedDuplicates,
     selectedYear,
     showMore,
+    searchType,
     handleInputChange,
     handleSearch,
     handleYearChange,
@@ -137,6 +139,18 @@ function App() {
       document.documentElement.classList.remove('dark');
     }
   }, [darkMode]);
+  
+  const handleCopyCode = useCallback((code) => {
+    // Code in die Zwischenablage kopieren
+    navigator.clipboard.writeText(code)
+      .then(() => {
+        // Optional: Erfolgsbenachrichtigung
+        console.log('Code in die Zwischenablage kopiert:', code);
+      })
+      .catch(err => {
+        console.error('Fehler beim Kopieren in die Zwischenablage:', err);
+      });
+  }, []);
   
   return (
     <ThemeProvider theme={theme}>
@@ -172,8 +186,11 @@ function App() {
               <ResultsTable
                 results={searchResults}
                 duplicatesRemoved={duplicatesRemoved}
+                removedDuplicates={removedDuplicates}
                 showMore={showMore}
                 toggleShowMore={toggleShowMore}
+                searchType={searchType}
+                onCopyCode={handleCopyCode}
               />
             )}
           </Container>

@@ -18,13 +18,24 @@ import {
   IconButton,
   Tooltip,
   useTheme,
-  useMediaQuery
+  useMediaQuery,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  List,
+  ListItem,
+  ListItemText,
+  Collapse
 } from '@mui/material';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import { exportToCSV, exportToExcel } from '../utils/export';
 import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
+import InfoIcon from '@mui/icons-material/Info';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
 
 /**
  * Component to display search results in a sortable table
@@ -32,6 +43,7 @@ import RemoveIcon from '@mui/icons-material/Remove';
 const ResultsTable = ({ 
   results, 
   duplicatesRemoved, 
+  removedDuplicates,
   showMore, 
   toggleShowMore,
   searchType,
@@ -44,6 +56,8 @@ const ResultsTable = ({
   const [order, setOrder] = useState('asc');
   const [filter, setFilter] = useState('');
   const [expandedCodes, setExpandedCodes] = useState({});
+  const [openDuplicatesDialog, setOpenDuplicatesDialog] = useState(false);
+  const [showDuplicatesCollapse, setShowDuplicatesCollapse] = useState(false);
   
   const handleRequestSort = (property) => {
     const isAsc = orderBy === property && order === 'asc';
@@ -196,6 +210,53 @@ const ResultsTable = ({
     return "";
   };
   
+  const DuplicatesDisplay = () => {
+    if (!removedDuplicates || removedDuplicates.length === 0) {
+      return <Typography variant="body2">Keine Duplikate gefunden.</Typography>;
+    }
+    
+    return (
+      <List dense>
+        {removedDuplicates.map((item, index) => (
+          <ListItem key={index} divider>
+            <ListItemText
+              primary={
+                <>
+                  <Chip 
+                    label={item.originalCode} 
+                    color="primary" 
+                    size="small" 
+                    sx={{ mr: 1 }}
+                  />
+                  <Typography variant="body2" component="span">
+                    wurde beibehalten
+                  </Typography>
+                </>
+              }
+              secondary={
+                <>
+                  <Typography variant="body2" component="span" color="text.secondary">
+                    Entfernte Duplikate: 
+                  </Typography>
+                  {item.duplicates.map((dupe, i) => (
+                    <Chip 
+                      key={i} 
+                      label={dupe} 
+                      color="default" 
+                      size="small" 
+                      variant="outlined"
+                      sx={{ ml: 1, mt: 0.5 }}
+                    />
+                  ))}
+                </>
+              }
+            />
+          </ListItem>
+        ))}
+      </List>
+    );
+  };
+  
   if (!results.length) {
     return null;
   }
@@ -251,9 +312,39 @@ const ResultsTable = ({
       </Box>
       
       {duplicatesRemoved > 0 && (
-        <Alert severity="info" sx={{ mb: 2 }}>
-          {duplicatesRemoved} Duplikat{duplicatesRemoved !== 1 ? 'e' : ''} wurde{duplicatesRemoved !== 1 ? 'n' : ''} automatisch entfernt
-        </Alert>
+        <>
+          <Alert 
+            severity="info" 
+            sx={{ mb: showDuplicatesCollapse ? 0 : 2 }}
+            action={
+              <IconButton
+                aria-label="show duplicates"
+                color="inherit"
+                size="small"
+                onClick={() => setShowDuplicatesCollapse(!showDuplicatesCollapse)}
+              >
+                {showDuplicatesCollapse ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
+              </IconButton>
+            }
+          >
+            {duplicatesRemoved} {duplicatesRemoved === 1 ? 'Code wurde' : 'Codes wurden'} aufgrund von Duplikaten entfernt
+          </Alert>
+          
+          <Collapse in={showDuplicatesCollapse} timeout="auto" unmountOnExit>
+            <Paper
+              sx={{
+                p: 2,
+                mb: 2,
+                backgroundColor: theme => theme.palette.mode === 'dark' ? 'rgba(50, 50, 50, 0.9)' : 'rgba(230, 230, 230, 0.9)'
+              }}
+            >
+              <Typography variant="subtitle2" gutterBottom>
+                Details zu entfernten Duplikaten:
+              </Typography>
+              <DuplicatesDisplay />
+            </Paper>
+          </Collapse>
+        </>
       )}
       
       <Box sx={{ mb: 2, display: 'flex', flexWrap: 'wrap', gap: 2 }}>
@@ -465,6 +556,20 @@ const ResultsTable = ({
           </TableBody>
         </Table>
       </TableContainer>
+      
+      <Dialog open={openDuplicatesDialog} onClose={() => setOpenDuplicatesDialog(false)}>
+        <DialogTitle>
+          Entfernte Duplikate
+        </DialogTitle>
+        <DialogContent>
+          <DuplicatesDisplay />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenDuplicatesDialog(false)}>
+            Schließen
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Paper>
   );
 };

@@ -230,7 +230,7 @@ export const normalizeCode = (code) => {
 /**
  * Parse user input into an array of codes
  * @param {string} input - User input
- * @returns {string[]} - Array of individual codes
+ * @returns {Object} - Object with unique codes and info about duplicates
  */
 export const parseUserInput = (input) => {
   // Split by comma, semicolon, newline, or space
@@ -240,16 +240,41 @@ export const parseUserInput = (input) => {
   
   // Remove duplicates - use case-insensitive comparison 
   const uniqueMap = new Map();
+  const duplicateTracker = {}; // Zum Verfolgen der Duplikate
+  
   codes.forEach(code => {
-    uniqueMap.set(code.toLowerCase(), code);
+    const lowerCode = code.toLowerCase();
+    
+    if (!duplicateTracker[lowerCode]) {
+      duplicateTracker[lowerCode] = [];
+    }
+    duplicateTracker[lowerCode].push(code);
+    
+    uniqueMap.set(lowerCode, code);
   });
   
   const uniqueCodes = Array.from(uniqueMap.values());
   const duplicatesRemoved = codes.length - uniqueCodes.length;
   
+  // Liste der entfernten Duplikate erstellen
+  const removedDuplicatesList = [];
+  for (const [lowerCode, instances] of Object.entries(duplicateTracker)) {
+    if (instances.length > 1) {
+      // Behalte den ersten Eintrag und betrachte die restlichen als Duplikate
+      const [kept, ...duplicates] = instances;
+      
+      removedDuplicatesList.push({
+        originalCode: kept,
+        duplicates: duplicates,
+        count: duplicates.length
+      });
+    }
+  }
+  
   return {
     codes: uniqueCodes,
-    duplicatesRemoved
+    duplicatesRemoved,
+    removedDuplicatesList
   };
 };
 

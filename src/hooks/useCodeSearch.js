@@ -11,6 +11,7 @@ const useCodeSearch = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [errors, setErrors] = useState([]);
   const [duplicatesRemoved, setDuplicatesRemoved] = useState(0);
+  const [removedDuplicates, setRemovedDuplicates] = useState([]);
   const [selectedYear, setSelectedYear] = useState(getCurrentYear());
   const [showMore, setShowMore] = useState({
     kapitel: false,
@@ -78,8 +79,11 @@ const useCodeSearch = () => {
     
     try {
       // Entferne Duplikate EINMAL, bevor die Suche beginnt
-      const { codes, duplicatesRemoved } = parseUserInput(textToSearch);
+      const { codes, duplicatesRemoved, removedDuplicatesList } = parseUserInput(textToSearch);
       const processedInput = codes.join(' ');
+      
+      // Speichere die Liste der entfernten Duplikate
+      setRemovedDuplicates(removedDuplicatesList);
       
       // Übergebe showMore.childCodes an beide Suchfunktionen
       const [icdResults, opsResults] = await Promise.all([
@@ -91,7 +95,7 @@ const useCodeSearch = () => {
       const combinedResults = [...icdResults.results, ...opsResults.results];
       const combinedErrors = [...icdResults.errors, ...opsResults.errors];
       
-      // Verwende duplicatesRemoved aus parseUserInput, NICHT aus den Suchfunktionen
+      // Verwende duplicatesRemoved aus parseUserInput
       setDuplicatesRemoved(duplicatesRemoved);
       
       // Determine search type from input
@@ -137,14 +141,21 @@ const useCodeSearch = () => {
     if (field === 'childCodes' && searchInput.trim()) {
       console.log(`DEBUG triggering new search with childCodes=${newValue}`);
       
+      // Entferne Duplikate EINMAL, bevor die Suche beginnt
+      const { codes, duplicatesRemoved, removedDuplicatesList } = parseUserInput(searchInput);
+      const processedInput = codes.join(' ');
+      
+      // Speichere die Liste der entfernten Duplikate
+      setRemovedDuplicates(removedDuplicatesList);
+      
       // Direkt mit dem neuen (invertierten) Wert suchen
       setIsLoading(true);
       setErrors([]);
       
       // Existierende Ergebnisse behalten, bis neue geladen sind
       Promise.all([
-        searchICDCodes(searchInput, selectedYear, newValue),
-        searchOPSCodes(searchInput, selectedYear, newValue)
+        searchICDCodes(processedInput, selectedYear, newValue),
+        searchOPSCodes(processedInput, selectedYear, newValue)
       ]).then(([icdResults, opsResults]) => {
         const combinedResults = [...icdResults.results, ...opsResults.results];
         const combinedErrors = [...icdResults.errors, ...opsResults.errors];
@@ -152,7 +163,7 @@ const useCodeSearch = () => {
         
         setSearchResults(combinedResults);
         setErrors(combinedErrors);
-        setDuplicatesRemoved(totalDuplicatesRemoved);
+        setDuplicatesRemoved(duplicatesRemoved);
       }).catch(error => {
         console.error('Error during search:', error);
         setErrors([`Fehler bei der Suche: ${error.message}`]);
@@ -178,6 +189,7 @@ const useCodeSearch = () => {
     isLoading,
     errors,
     duplicatesRemoved,
+    removedDuplicates,
     selectedYear,
     showMore,
     searchType,
