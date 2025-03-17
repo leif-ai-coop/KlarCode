@@ -23,12 +23,53 @@ export const isValidOPSFormat = (code) => {
  * @returns {string} - Korrekt formatierter OPS-Code
  */
 export const normalizeOPSCode = (code) => {
-  // Grundlegende Normalisierung
+  // Basic normalization
   let normalized = normalizeCode(code);
   
   console.log(`Normalizing OPS code: "${code}" (after basic normalization: "${normalized}")`);
   
-  // Spezialfall für "5378b8" or "5-378b8" - mit oder ohne Bindestrich
+  // Special case for pure numeric codes like "53780"
+  const pureNumericPattern = /^(\d)(\d{3})(\d+)$/;
+  if (pureNumericPattern.test(normalized)) {
+    const matches = normalized.match(pureNumericPattern);
+    const firstDigit = matches[1];  // 5
+    const midDigits = matches[2];   // 378
+    const lastDigits = matches[3];  // 0
+    
+    const result = `${firstDigit}-${midDigits}.${lastDigits}`;
+    console.log(`Normalized numeric case: "${code}" -> "${result}"`);
+    return result;
+  }
+  
+  // Special case for codes with letters after numeric part, like "5378a" or "5378ab"
+  const numericWithLetterSuffix = /^(\d)(\d{3})([a-z]{1,2})$/i;
+  if (numericWithLetterSuffix.test(normalized)) {
+    const matches = normalized.match(numericWithLetterSuffix);
+    const firstDigit = matches[1];  // 5
+    const midDigits = matches[2];   // 378
+    const letters = matches[3];     // a or ab
+    
+    const result = `${firstDigit}-${midDigits}.${letters}`;
+    console.log(`Normalized numeric with letter suffix: "${code}" -> "${result}"`);
+    return result;
+  }
+  
+  // Special case for mixed patterns like "5378a2" 
+  const mixedPattern = /^(\d)(\d{3})([a-z])(\d{1,2})$/i;
+  if (mixedPattern.test(normalized)) {
+    const matches = normalized.match(mixedPattern);
+    const firstDigit = matches[1];  // 5
+    const midDigits = matches[2];   // 378
+    const letter = matches[3];      // a
+    const finalDigits = matches[4]; // 2
+    
+    // Handle this as: "5-378.a2" (letter and number after the dot)
+    const result = `${firstDigit}-${midDigits}.${letter}${finalDigits}`;
+    console.log(`Normalized mixed pattern: "${code}" -> "${result}"`);
+    return result;
+  }
+  
+  // Special case for "5378b8" or "5-378b8" pattern - with or without hyphen
   const patternWithLetterAndNumber = /^(\d)[-]?(\d+)([a-z])(\d+)$/i;
   if (patternWithLetterAndNumber.test(normalized)) {
     const matches = normalized.match(patternWithLetterAndNumber);
@@ -37,9 +78,20 @@ export const normalizeOPSCode = (code) => {
     const letter = matches[3];
     const lastDigits = matches[4];
     
-    const result = `${firstDigit}-${midDigits}.${letter}${lastDigits}`;
-    console.log(`Normalized special case: "${code}" -> "${result}"`);
-    return result;
+    // Put the dot BEFORE the letter if it's in the middle, 
+    // AFTER if it appears to be after the numeric sequence
+    if (midDigits.length >= 3) {
+      // For patterns like "5378b8" -> "5-378.b8"
+      const result = `${firstDigit}-${midDigits}.${letter}${lastDigits}`;
+      console.log(`Normalized special case (dot before letter): "${code}" -> "${result}"`);
+      return result;
+    } else {
+      // For patterns where the letter is part of the main code
+      // Example: "5-37b8" -> "5-37b.8"
+      const result = `${firstDigit}-${midDigits}${letter}.${lastDigits}`;
+      console.log(`Normalized special case (dot after letter): "${code}" -> "${result}"`);
+      return result;
+    }
   }
   
   // Dann erst prüfen, ob es bereits ein korrekt formatierter OPS-Code ist
@@ -136,7 +188,31 @@ export const normalizeOPSCode = (code) => {
     }
   }
   
-  // Wichtig: Debugging-Output
+  // Case 3: Without hyphen and without dot (e.g., "53780") - IMPROVED CASE
+  if (/^\d{4,}$/.test(normalized)) {
+    // This is a pure numeric code without any separators
+    // First insert the hyphen after the first digit
+    normalized = normalized.replace(/^(\d)/, '$1-');
+    
+    // Then insert the dot at the appropriate position (after the first 3-4 digits)
+    if (normalized.length >= 6) {  // 5-378+rest (at least 1 char after the base)
+      normalized = normalized.replace(/^(\d-\d{3})(\d{1,2}|\w{1,2})$/, '$1.$2');
+    }
+    
+    console.log(`Normalized compact numeric case: "${code}" -> "${normalized}"`);
+    return normalized;
+  }
+  
+  // Final fallback case for other patterns
+  if (!/\./.test(normalized) && normalized.length > 5) {
+    // If we haven't added a dot yet and the code is long enough,
+    // try to insert a dot after the base code (first 5 chars including hyphen)
+    if (/^\d-\d{3}/.test(normalized)) {
+      normalized = normalized.replace(/^(\d-\d{3})(.+)$/, '$1.$2');
+    }
+  }
+  
+  // Important: Debugging output
   console.log(`Final normalized result for "${code}": "${normalized}"`);
   return normalized;
 };
