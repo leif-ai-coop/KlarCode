@@ -191,6 +191,7 @@ function App() {
                 toggleShowMore={toggleShowMore}
                 searchType={searchType}
                 onCopyCode={handleCopyCode}
+                errors={errors}
               />
             )}
           </Container>
