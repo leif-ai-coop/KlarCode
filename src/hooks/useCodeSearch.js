@@ -77,24 +77,29 @@ const useCodeSearch = () => {
     setDuplicatesRemoved(0);
     
     try {
+      // Entferne Duplikate EINMAL, bevor die Suche beginnt
+      const { codes, duplicatesRemoved } = parseUserInput(textToSearch);
+      const processedInput = codes.join(' ');
+      
       // Übergebe showMore.childCodes an beide Suchfunktionen
       const [icdResults, opsResults] = await Promise.all([
-        searchICDCodes(textToSearch, selectedYear, showMore.childCodes),
-        searchOPSCodes(textToSearch, selectedYear, showMore.childCodes)
+        searchICDCodes(processedInput, selectedYear, showMore.childCodes),
+        searchOPSCodes(processedInput, selectedYear, showMore.childCodes)
       ]);
       
       // Rest der Funktion bleibt gleich...
       const combinedResults = [...icdResults.results, ...opsResults.results];
       const combinedErrors = [...icdResults.errors, ...opsResults.errors];
-      const totalDuplicatesRemoved = icdResults.duplicatesRemoved + opsResults.duplicatesRemoved;
+      
+      // Verwende duplicatesRemoved aus parseUserInput, NICHT aus den Suchfunktionen
+      setDuplicatesRemoved(duplicatesRemoved);
       
       // Determine search type from input
-      const { type } = analyzeCodeTypes(parseUserInput(textToSearch).codes);
+      const { type } = analyzeCodeTypes(codes);
       setSearchType(type !== 'mixed' ? type : 'ops'); // Default to ops for mixed
       
       setSearchResults(combinedResults);
       setErrors(combinedErrors);
-      setDuplicatesRemoved(totalDuplicatesRemoved);
     } catch (error) {
       console.error('Error during search:', error);
       setErrors([`Fehler bei der Suche: ${error.message}`]);
