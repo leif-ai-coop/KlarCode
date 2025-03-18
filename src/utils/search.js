@@ -236,7 +236,9 @@ export const parseUserInput = (input) => {
   // Split by comma, semicolon, newline, or space
   const codes = input.split(/[,;\n\s]+/)
     .map(code => code.trim())
-    .filter(code => code.length > 0);
+    .filter(code => code.length > 0)
+    // Entferne die Suffixe :R, :L und :B am Ende der Codes
+    .map(code => code.replace(/:(R|L|B)$/i, ''));
   
   // Remove duplicates - use case-insensitive comparison 
   const uniqueMap = new Map();
