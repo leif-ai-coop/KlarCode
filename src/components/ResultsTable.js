@@ -327,7 +327,7 @@ const ResultsTable = ({
               </IconButton>
             }
           >
-            {duplicatesRemoved} {duplicatesRemoved === 1 ? 'Code wurde' : 'Codes wurden'} aufgrund von Duplikaten entfernt
+            {duplicatesRemoved} {duplicatesRemoved === 1 ? 'Code wurde' : 'Codes wurden'} als {duplicatesRemoved === 1 ? 'Duplikat' : 'Duplikate'}  entfernt
           </Alert>
           
           <Collapse in={showDuplicatesCollapse} timeout="auto" unmountOnExit>

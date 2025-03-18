@@ -133,7 +133,7 @@ const SearchBox = ({
           }}
         />
         <Typography variant="caption" color="textSecondary">
-          Geben Sie mindestens die ersten drei Stellen ein. Mehrere Codes können durch Komma, Semikolon, Leerzeichen oder Zeilenumbruch getrennt werden. * oder % können am Ende von Kodes stehen.
+          Geben Sie mindestens die ersten drei Stellen ein. Mehrere Codes können durch Komma, Semikolon, Leerzeichen oder Zeilenumbruch getrennt werden. * oder % können am Ende von Codes stehen. Duplikate und Seitenangaben werden automatisch entfernt. 
         </Typography>
       </Box>
 
