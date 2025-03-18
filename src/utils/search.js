@@ -236,26 +236,32 @@ export const parseUserInput = (input) => {
   // Split by comma, semicolon, newline, or space
   const codes = input.split(/[,;\n\s]+/)
     .map(code => code.trim())
-    .filter(code => code.length > 0)
-    // Entferne die Suffixe :R, :L und :B am Ende der Codes
-    .map(code => code.replace(/:(R|L|B)$/i, ''));
+    .filter(code => code.length > 0);
   
   // Remove duplicates - use case-insensitive comparison 
   const uniqueMap = new Map();
   const duplicateTracker = {}; // Zum Verfolgen der Duplikate
   
   codes.forEach(code => {
-    const lowerCode = code.toLowerCase();
+    // Für den Vergleich normalisierte Version (ohne Suffixe)
+    const normalizedCode = code.replace(/:(R|L|B)$/i, '');
+    const lowerCode = normalizedCode.toLowerCase();
     
     if (!duplicateTracker[lowerCode]) {
       duplicateTracker[lowerCode] = [];
     }
-    duplicateTracker[lowerCode].push(code);
+    duplicateTracker[lowerCode].push(code); // Original-Code mit Suffix speichern
     
-    uniqueMap.set(lowerCode, code);
+    // Original-Code für diese normalisierte Version aktualisieren
+    if (!uniqueMap.has(lowerCode)) {
+      uniqueMap.set(lowerCode, code);
+    }
   });
   
-  const uniqueCodes = Array.from(uniqueMap.values());
+  // Eindeutige Codes sammeln und gleichzeitig Suffixe entfernen
+  const uniqueCodes = Array.from(uniqueMap.values())
+    .map(code => code.replace(/:(R|L|B)$/i, '')); // Suffixe hier entfernen
+  
   const duplicatesRemoved = codes.length - uniqueCodes.length;
   
   // Liste der entfernten Duplikate erstellen
@@ -266,8 +272,8 @@ export const parseUserInput = (input) => {
       const [kept, ...duplicates] = instances;
       
       removedDuplicatesList.push({
-        originalCode: kept,
-        duplicates: duplicates,
+        originalCode: kept, // Beibehaltener Code mit Original-Suffix
+        duplicates: duplicates, // Duplizierte Codes mit Original-Suffix
         count: duplicates.length
       });
     }

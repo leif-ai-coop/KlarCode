@@ -208,7 +208,7 @@ const SearchBox = ({
           variant="outlined"
           color="secondary"
           onClick={handleClear}
-          disabled={isLoading}
+          disabled={!inputValue.trim() || isLoading}
           sx={{ minWidth: 120 }}
         >
           LÖSCHEN
