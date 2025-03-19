@@ -28,6 +28,38 @@ export const normalizeOPSCode = (code) => {
   
   console.log(`Normalizing OPS code: "${code}" (after basic normalization: "${normalized}")`);
   
+  // ROBUSTERE IMPLEMENTIERUNG: Für Codes mit Buchstaben an vierter Stelle MIT nachfolgenden Ziffern
+  if (/^\d\d{2}[a-z]\d+$/i.test(normalized)) {
+    // Für Eingabe wie "598c2" -> "5-98c.2"
+    const firstDigit = normalized.charAt(0);
+    const restDigits = normalized.substring(1);
+    
+    // Finde den ersten Buchstaben nach den Ziffern
+    const letterMatch = restDigits.match(/^(\d+)([a-z])(\d+)$/i);
+    if (letterMatch) {
+      const [, digits, letter, lastDigits] = letterMatch;
+      const result = `${firstDigit}-${digits}${letter}.${lastDigits}`;
+      console.log(`Normalized with robust pattern: "${code}" -> "${result}"`);
+      return result;
+    }
+  }
+  
+  // NEUER FALL: Für Codes mit Buchstaben an vierter Stelle OHNE nachfolgende Ziffern
+  if (/^\d\d{2}[a-z]$/i.test(normalized)) {
+    // Für Eingabe wie "598c" -> "5-98c"
+    const firstDigit = normalized.charAt(0);
+    const restDigits = normalized.substring(1);
+    
+    // Extrahiere die Ziffern und den Buchstaben
+    const match = restDigits.match(/^(\d+)([a-z])$/i);
+    if (match) {
+      const [, digits, letter] = match;
+      const result = `${firstDigit}-${digits}${letter}`;
+      console.log(`Normalized with robust pattern (no trailing digits): "${code}" -> "${result}"`);
+      return result;
+    }
+  }
+  
   // Special case for pure numeric codes like "53780"
   const pureNumericPattern = /^(\d)(\d{3})(\d+)$/;
   if (pureNumericPattern.test(normalized)) {
