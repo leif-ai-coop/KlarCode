@@ -198,6 +198,71 @@ const SearchResults = ({ results, searchType, onCopyCode, showMore, onToggleShow
           </label>
           <span>Subcodes anzeigen</span>
         </div>
+        
+        {/* Neue Optionen - nur für OPS anzeigen */}
+        {searchType === 'ops' && (
+          <>
+            <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
+              <label className="toggle-switch">
+                <input 
+                  type="checkbox" 
+                  checked={showMore.terminalCode} 
+                  onChange={() => onToggleShowMore('terminalCode')} 
+                />
+                <span className="slider"></span>
+              </label>
+              <span>Terminale Schlüsselnummer anzeigen</span>
+            </div>
+            
+            <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
+              <label className="toggle-switch">
+                <input 
+                  type="checkbox" 
+                  checked={showMore.sideRequired} 
+                  onChange={() => onToggleShowMore('sideRequired')} 
+                />
+                <span className="slider"></span>
+              </label>
+              <span>Seitenangabe erforderlich anzeigen</span>
+            </div>
+            
+            <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
+              <label className="toggle-switch">
+                <input 
+                  type="checkbox" 
+                  checked={showMore.validityKHG} 
+                  onChange={() => onToggleShowMore('validityKHG')} 
+                />
+                <span className="slider"></span>
+              </label>
+              <span>Gültigkeit § 17 KHG anzeigen</span>
+            </div>
+            
+            <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
+              <label className="toggle-switch">
+                <input 
+                  type="checkbox" 
+                  checked={showMore.isAdditionalCode} 
+                  onChange={() => onToggleShowMore('isAdditionalCode')} 
+                />
+                <span className="slider"></span>
+              </label>
+              <span>Zusatzkode anzeigen</span>
+            </div>
+            
+            <div style={{display: 'flex', alignItems: 'center', gap: '10px'}}>
+              <label className="toggle-switch">
+                <input 
+                  type="checkbox" 
+                  checked={showMore.isOneTimeCode} 
+                  onChange={() => onToggleShowMore('isOneTimeCode')} 
+                />
+                <span className="slider"></span>
+              </label>
+              <span>Einmalkode anzeigen</span>
+            </div>
+          </>
+        )}
       </div>
       
       <div className="results-table">
@@ -209,6 +274,14 @@ const SearchResults = ({ results, searchType, onCopyCode, showMore, onToggleShow
               {showMore.kapitel && <th>Kapitel</th>}
               {showMore.gruppe && <th>Gruppe</th>}
               {showMore.dreisteller && searchType === 'ops' && <th>Dreisteller</th>}
+              
+              {/* Neue Spalten */}
+              {showMore.terminalCode && searchType === 'ops' && <th>Terminale Schlüsselnummer</th>}
+              {showMore.sideRequired && searchType === 'ops' && <th>Seitenangabe erforderlich</th>}
+              {showMore.validityKHG && searchType === 'ops' && <th>Gültigkeit § 17 KHG</th>}
+              {showMore.isAdditionalCode && searchType === 'ops' && <th>Zusatzkode</th>}
+              {showMore.isOneTimeCode && searchType === 'ops' && <th>Einmalkode</th>}
+              
               <th>Aktionen</th>
             </tr>
           </thead>
@@ -222,6 +295,14 @@ const SearchResults = ({ results, searchType, onCopyCode, showMore, onToggleShow
                 {showMore.kapitel && <td>{result.kapitel || '-'}</td>}
                 {showMore.gruppe && <td>{result.gruppe || '-'}</td>}
                 {showMore.dreisteller && searchType === 'ops' && <td>{result.dreisteller || '-'}</td>}
+                
+                {/* Neue Zellen */}
+                {showMore.terminalCode && searchType === 'ops' && <td>{result.terminalCode || '-'}</td>}
+                {showMore.sideRequired && searchType === 'ops' && <td>{result.sideRequired || '-'}</td>}
+                {showMore.validityKHG && searchType === 'ops' && <td>{result.validityKHG || '-'}</td>}
+                {showMore.isAdditionalCode && searchType === 'ops' && <td>{result.isAdditionalCode || '-'}</td>}
+                {showMore.isOneTimeCode && searchType === 'ops' && <td>{result.isOneTimeCode || '-'}</td>}
+                
                 <td>
                   <button className="icon-button" onClick={() => handleCopy(result.kode)}>
                     <i className="fas fa-copy"></i>

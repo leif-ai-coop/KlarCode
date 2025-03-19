@@ -17,7 +17,12 @@ const useCodeSearch = () => {
     kapitel: false,
     gruppe: false,
     dreisteller: false,
-    childCodes: false
+    childCodes: false,
+    terminalCode: false,
+    sideRequired: false,
+    validityKHG: false,
+    isAdditionalCode: false,
+    isOneTimeCode: false
   });
   const [searchType, setSearchType] = useState('ops'); // Default to 'ops'
   

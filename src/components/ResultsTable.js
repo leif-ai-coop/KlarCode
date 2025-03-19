@@ -123,6 +123,27 @@ const ResultsTable = ({
       headers.push({ key: 'dreisteller', label: 'Dreisteller' });
     }
     
+    // Neue Felder für den Export
+    if (showMore.terminalCode) {
+      headers.push({ key: 'terminalCode', label: 'Terminale Schlüsselnummer' });
+    }
+    
+    if (showMore.sideRequired) {
+      headers.push({ key: 'sideRequired', label: 'Seitenangabe erforderlich' });
+    }
+    
+    if (showMore.validityKHG) {
+      headers.push({ key: 'validityKHG', label: 'Gültigkeit § 17 KHG' });
+    }
+    
+    if (showMore.isAdditionalCode) {
+      headers.push({ key: 'isAdditionalCode', label: 'Zusatzkode' });
+    }
+    
+    if (showMore.isOneTimeCode) {
+      headers.push({ key: 'isOneTimeCode', label: 'Einmalkode' });
+    }
+    
     return headers;
   };
   
@@ -387,6 +408,61 @@ const ResultsTable = ({
           }
           label="Subcodes anzeigen"
         />
+        
+        {/* Neue Optionen */}
+        {searchType === 'ops' && (
+          <>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={showMore.terminalCode}
+                  onChange={() => toggleShowMore('terminalCode')}
+                />
+              }
+              label="Terminale Schlüsselnummer"
+            />
+            
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={showMore.sideRequired}
+                  onChange={() => toggleShowMore('sideRequired')}
+                />
+              }
+              label="Seitenangabe erforderlich"
+            />
+            
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={showMore.validityKHG}
+                  onChange={() => toggleShowMore('validityKHG')}
+                />
+              }
+              label="Gültigkeit § 17 KHG"
+            />
+            
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={showMore.isAdditionalCode}
+                  onChange={() => toggleShowMore('isAdditionalCode')}
+                />
+              }
+              label="Zusatzkode"
+            />
+            
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={showMore.isOneTimeCode}
+                  onChange={() => toggleShowMore('isOneTimeCode')}
+                />
+              }
+              label="Einmalkode"
+            />
+          </>
+        )}
       </Box>
       
       {showMore.childCodes && (
@@ -478,6 +554,67 @@ const ResultsTable = ({
                 </TableCell>
               )}
               
+              {/* Neue Spalten */}
+              {showMore.terminalCode && searchType === 'ops' && (
+                <TableCell>
+                  <TableSortLabel
+                    active={orderBy === 'terminalCode'}
+                    direction={orderBy === 'terminalCode' ? order : 'asc'}
+                    onClick={() => handleRequestSort('terminalCode')}
+                  >
+                    Terminale Schlüsselnummer
+                  </TableSortLabel>
+                </TableCell>
+              )}
+              
+              {showMore.sideRequired && searchType === 'ops' && (
+                <TableCell>
+                  <TableSortLabel
+                    active={orderBy === 'sideRequired'}
+                    direction={orderBy === 'sideRequired' ? order : 'asc'}
+                    onClick={() => handleRequestSort('sideRequired')}
+                  >
+                    Seitenangabe erforderlich
+                  </TableSortLabel>
+                </TableCell>
+              )}
+              
+              {showMore.validityKHG && searchType === 'ops' && (
+                <TableCell>
+                  <TableSortLabel
+                    active={orderBy === 'validityKHG'}
+                    direction={orderBy === 'validityKHG' ? order : 'asc'}
+                    onClick={() => handleRequestSort('validityKHG')}
+                  >
+                    Gültigkeit § 17 KHG
+                  </TableSortLabel>
+                </TableCell>
+              )}
+              
+              {showMore.isAdditionalCode && searchType === 'ops' && (
+                <TableCell>
+                  <TableSortLabel
+                    active={orderBy === 'isAdditionalCode'}
+                    direction={orderBy === 'isAdditionalCode' ? order : 'asc'}
+                    onClick={() => handleRequestSort('isAdditionalCode')}
+                  >
+                    Zusatzkode
+                  </TableSortLabel>
+                </TableCell>
+              )}
+              
+              {showMore.isOneTimeCode && searchType === 'ops' && (
+                <TableCell>
+                  <TableSortLabel
+                    active={orderBy === 'isOneTimeCode'}
+                    direction={orderBy === 'isOneTimeCode' ? order : 'asc'}
+                    onClick={() => handleRequestSort('isOneTimeCode')}
+                  >
+                    Einmalkode
+                  </TableSortLabel>
+                </TableCell>
+              )}
+              
               <TableCell align="right">
                 <Tooltip title="Kopieren">
                   <span>Aktionen</span>
@@ -536,6 +673,26 @@ const ResultsTable = ({
                 
                 {showMore.dreisteller && (
                   <TableCell>{row.dreisteller || '-'}</TableCell>
+                )}
+                
+                {showMore.terminalCode && searchType === 'ops' && (
+                  <TableCell>{row.terminalCode || '-'}</TableCell>
+                )}
+                
+                {showMore.sideRequired && searchType === 'ops' && (
+                  <TableCell>{row.sideRequired || '-'}</TableCell>
+                )}
+                
+                {showMore.validityKHG && searchType === 'ops' && (
+                  <TableCell>{row.validityKHG || '-'}</TableCell>
+                )}
+                
+                {showMore.isAdditionalCode && searchType === 'ops' && (
+                  <TableCell>{row.isAdditionalCode || '-'}</TableCell>
+                )}
+                
+                {showMore.isOneTimeCode && searchType === 'ops' && (
+                  <TableCell>{row.isOneTimeCode || '-'}</TableCell>
                 )}
                 
                 <TableCell align="right">

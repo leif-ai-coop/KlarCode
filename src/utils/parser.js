@@ -105,11 +105,52 @@ export const parseOPSCodes = (content) => {
       // Ein Code mit niedrigerem Level und/oder ohne Punkt ist wahrscheinlich ein übergeordneter Code
       const isNonTerminal = level < 6 || !kode.includes('.');
       
+      // Extrahiere die zusätzlichen Felder
+      const terminalCode = parts[1] === 'T' ? 'Ja' : 'Nein';
+      
+      // Feld 8 (Index 7): Seitenangabe erforderlich
+      const sideRequired = parts.length > 7 && parts[7] === 'J' ? 'Ja' : 'Nein';
+      
+      // Feld 13 (Index 12): Gültigkeit nach § 17d KHG
+      let validityKHG = '-';
+      if (parts.length > 12) {
+        switch (parts[12]) {
+          case '0': validityKHG = 'Gültig nach § 17b KHG'; break;
+          case '1': validityKHG = 'Gültig nach § 17d KHG'; break;
+          case '2': validityKHG = 'Gültig nach § 17b und § 17d KHG'; break;
+          case '3': validityKHG = 'Nicht gültig nach § 17b und § 17d KHG'; break;
+        }
+      }
+      
+      // Feld 14 (Index 13): Zusatzkode
+      const isAdditionalCode = parts.length > 13 ? 
+        (parts[13] === 'J' ? 'Ja' : 
+         parts[13] === 'N' ? 'Nein' : '-') : '-';
+      
+      // Feld 15 (Index 14): Einmalkode - KORRIGIERTE IMPLEMENTIERUNG
+      let isOneTimeCode = '-';
+      if (parts.length > 14) {
+        // Trim zum Entfernen möglicher Whitespaces oder Zeilenumbrüche
+        const oneTimeValue = parts[14].trim();
+        isOneTimeCode = oneTimeValue === 'J' ? 'Ja' : 
+                        oneTimeValue === 'N' ? 'Nein' : 
+                        oneTimeValue === '' ? '-' : oneTimeValue;
+      }
+      
+      // Debug-Ausgabe für das problematische Feld
+      console.log(`Code ${kode} - Original Einmalkode Wert: '${parts.length > 14 ? parts[14] : "nicht vorhanden"}', Interpretiert als: ${isOneTimeCode}`);
+      
       codesMap[kode] = {
         kode,
         beschreibung,
         isNonTerminal,
-        level
+        level,
+        // Neue Felder
+        terminalCode,
+        sideRequired,
+        validityKHG,
+        isAdditionalCode,
+        isOneTimeCode
       };
     }
   });

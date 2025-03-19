@@ -543,6 +543,11 @@ export const searchOPSCodes = async (input, year, showChildCodes = false) => {
           hasChildCodes: hasChildren, // Explicitly mark if it has children
           isDirectInput: true,
           isEndstellig: !codeData.isNonTerminal && !exactCode.endsWith('-'),
+          terminalCode: codeData.terminalCode || '-',
+          sideRequired: codeData.sideRequired || '-',
+          validityKHG: codeData.validityKHG || '-',
+          isAdditionalCode: codeData.isAdditionalCode || '-',
+          isOneTimeCode: codeData.isOneTimeCode || '-'
         });
         
         // Wenn es ein übergeordneter Code ist und showChildCodes aktiviert ist,
@@ -571,6 +576,11 @@ export const searchOPSCodes = async (input, year, showChildCodes = false) => {
                 isDirectInput: false,
                 isExpandedChild: true,
                 isEndstellig: !childData.isNonTerminal && !childCode.endsWith('-'),
+                terminalCode: childData.terminalCode || '-',
+                sideRequired: childData.sideRequired || '-',
+                validityKHG: childData.validityKHG || '-',
+                isAdditionalCode: childData.isAdditionalCode || '-',
+                isOneTimeCode: childData.isOneTimeCode || '-'
               });
             });
           }
