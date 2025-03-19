@@ -20,11 +20,106 @@ export const parseICDCodes = (content) => {
       // Markieren, ob es sich um einen nicht-endstelligen Code handelt
       const isNonTerminal = originalNotation.includes('.-');
       
+      // Feld 13: Verwendung der Schlüsselnummer nach Paragraph 295
+      let usage295 = '-';
+      if (parts.length > 12) {
+        switch (parts[12]) {
+          case 'P': usage295 = 'Primärverschlüsselung zugelassen'; break;
+          case 'O': usage295 = 'Nur als Sternschlüsselnummer'; break;
+          case 'Z': usage295 = 'Nur als Ausrufezeichenschlüsselnummer'; break;
+          case 'V': usage295 = 'Nicht zur Verschlüsselung zugelassen'; break;
+          default: usage295 = parts[12] || '-';
+        }
+      }
+      
+      // Feld 14: Verwendung der Schlüsselnummer nach Paragraph 301
+      let usage301 = '-';
+      if (parts.length > 13) {
+        switch (parts[13]) {
+          case 'P': usage301 = 'Primärverschlüsselung zugelassen'; break;
+          case 'O': usage301 = 'Nur als Sternschlüsselnummer'; break;
+          case 'Z': usage301 = 'Nur als Ausrufezeichenschlüsselnummer'; break;
+          case 'V': usage301 = 'Nicht zur Verschlüsselung zugelassen'; break;
+          default: usage301 = parts[13] || '-';
+        }
+      }
+      
+      // Feld 20: Geschlechtsbezug der Schlüsselnummer
+      let genderRestriction = '-';
+      if (parts.length > 19) {
+        switch (parts[19]) {
+          case '9': genderRestriction = 'Kein Geschlechtsbezug'; break;
+          case 'M': genderRestriction = 'Nur männlich'; break;
+          case 'W': genderRestriction = 'Nur weiblich'; break;
+          default: genderRestriction = parts[19] || '-';
+        }
+      }
+      
+      // Feld 22: Untere Altersgrenze
+      let minAge = '-';
+      if (parts.length > 21 && parts[21] !== '9999') {
+        const ageValue = parts[21];
+        if (ageValue.startsWith('t')) {
+          const days = parseInt(ageValue.substring(1), 10);
+          minAge = `Ab ${days} ${days === 1 ? 'Tag' : 'Tagen'}`;
+        } else if (ageValue.startsWith('j')) {
+          const years = parseInt(ageValue.substring(1), 10);
+          minAge = `Ab ${years} ${years === 1 ? 'Jahr' : 'Jahren'}`;
+        } else {
+          minAge = ageValue;
+        }
+      }
+      
+      // Feld 23: Obere Altersgrenze
+      let maxAge = '-';
+      if (parts.length > 22 && parts[22] !== '9999') {
+        const ageValue = parts[22];
+        if (ageValue.startsWith('t')) {
+          const days = parseInt(ageValue.substring(1), 10);
+          maxAge = `Bis ${days} ${days === 1 ? 'Tag' : 'Tagen'}`;
+        } else if (ageValue.startsWith('j')) {
+          const years = parseInt(ageValue.substring(1), 10);
+          maxAge = `Bis ${years} ${years === 1 ? 'Jahr' : 'Jahren'}`;
+        } else {
+          maxAge = ageValue;
+        }
+      }
+      
+      // Feld 24: Art des Fehlers bei Altersbezug
+      let ageError = '-';
+      if (parts.length > 23) {
+        switch (parts[23]) {
+          case '9': ageError = 'Irrelevant'; break;
+          case 'M': ageError = 'Muss-Fehler'; break;
+          case 'K': ageError = 'Kann-Fehler'; break;
+          default: ageError = parts[23] || '-';
+        }
+      }
+      
+      // Feld 27: IfSG-Meldung
+      const ifsgReporting = parts.length > 26 ? 
+        (parts[26] === 'J' ? 'Ja' : 
+         parts[26] === 'N' ? 'Nein' : '-') : '-';
+      
+      // Feld 28: IfSG-Labor
+      const ifsgLab = parts.length > 27 ? 
+        (parts[27] === 'J' ? 'Ja' : 
+         parts[27] === 'N' ? 'Nein' : '-') : '-';
+      
       codesMap[kode] = {
         kode,
         beschreibung,
         isNonTerminal,
-        kapitel // Kapitelinformation speichern
+        kapitel, // Kapitelinformation speichern
+        // Neue Felder
+        usage295,
+        usage301,
+        genderRestriction,
+        minAge,
+        maxAge,
+        ageError,
+        ifsgReporting,
+        ifsgLab
       };
     }
   });

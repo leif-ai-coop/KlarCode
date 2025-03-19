@@ -360,6 +360,14 @@ export const searchICDCodes = async (input, year, showChildCodes = false) => {
           hasChildCodes: hasRealChildren, // Explizit markieren, ob es Kind-Codes hat
           isDirectInput: true,
           isEndstellig: !codeData.isNonTerminal && !formattedCode.endsWith('-'),
+          usage295: codeData.usage295 || '-',
+          usage301: codeData.usage301 || '-',
+          genderRestriction: codeData.genderRestriction || '-',
+          minAge: codeData.minAge || '-',
+          maxAge: codeData.maxAge || '-',
+          ageError: codeData.ageError || '-',
+          ifsgReporting: codeData.ifsgReporting || '-',
+          ifsgLab: codeData.ifsgLab || '-'
         });
         
         // Wenn es ein übergeordneter Code ist und showChildCodes aktiviert ist,
@@ -384,6 +392,14 @@ export const searchICDCodes = async (input, year, showChildCodes = false) => {
               isDirectInput: false,
               isExpandedChild: true,
               isEndstellig: !childData.isNonTerminal && !childCode.endsWith('-'),
+              usage295: childData.usage295 || '-',
+              usage301: childData.usage301 || '-',
+              genderRestriction: childData.genderRestriction || '-',
+              minAge: childData.minAge || '-',
+              maxAge: childData.maxAge || '-',
+              ageError: childData.ageError || '-',
+              ifsgReporting: childData.ifsgReporting || '-',
+              ifsgLab: childData.ifsgLab || '-'
             });
           });
         }
@@ -410,6 +426,14 @@ export const searchICDCodes = async (input, year, showChildCodes = false) => {
                 isDirectInput: false,
                 isExpandedChild: true,
                 isEndstellig: !childData.isNonTerminal && !childCode.endsWith('-'),
+                usage295: childData.usage295 || '-',
+                usage301: childData.usage301 || '-',
+                genderRestriction: childData.genderRestriction || '-',
+                minAge: childData.minAge || '-',
+                maxAge: childData.maxAge || '-',
+                ageError: childData.ageError || '-',
+                ifsgReporting: childData.ifsgReporting || '-',
+                ifsgLab: childData.ifsgLab || '-'
               });
             });
           } else {
@@ -421,6 +445,14 @@ export const searchICDCodes = async (input, year, showChildCodes = false) => {
               virtualParent: true,
               isDirectInput: false,
               isEndstellig: true,
+              usage295: '-',
+              usage301: '-',
+              genderRestriction: '-',
+              minAge: '-',
+              maxAge: '-',
+              ageError: '-',
+              ifsgReporting: '-',
+              ifsgLab: '-'
             });
           }
         } else {
@@ -580,7 +612,15 @@ export const searchOPSCodes = async (input, year, showChildCodes = false) => {
                 sideRequired: childData.sideRequired || '-',
                 validityKHG: childData.validityKHG || '-',
                 isAdditionalCode: childData.isAdditionalCode || '-',
-                isOneTimeCode: childData.isOneTimeCode || '-'
+                isOneTimeCode: childData.isOneTimeCode || '-',
+                usage295: childData.usage295 || '-',
+                usage301: childData.usage301 || '-',
+                genderRestriction: childData.genderRestriction || '-',
+                minAge: childData.minAge || '-',
+                maxAge: childData.maxAge || '-',
+                ageError: childData.ageError || '-',
+                ifsgReporting: childData.ifsgReporting || '-',
+                ifsgLab: childData.ifsgLab || '-'
               });
             });
           }
@@ -612,6 +652,14 @@ export const searchOPSCodes = async (input, year, showChildCodes = false) => {
               isParent: true,
               isDirectInput: true,
               isEndstellig: false,
+              usage295: '-',
+              usage301: '-',
+              genderRestriction: '-',
+              minAge: '-',
+              maxAge: '-',
+              ageError: '-',
+              ifsgReporting: '-',
+              ifsgLab: '-'
             });
             
             // Finde alle Kindcodes dieses Dreistellercodes, aber nur wenn showChildCodes aktiviert ist
@@ -636,6 +684,14 @@ export const searchOPSCodes = async (input, year, showChildCodes = false) => {
                     isDirectInput: false,
                     isExpandedChild: true,
                     isEndstellig: !childData.isNonTerminal && !childCode.endsWith('-'),
+                    usage295: childData.usage295 || '-',
+                    usage301: childData.usage301 || '-',
+                    genderRestriction: childData.genderRestriction || '-',
+                    minAge: childData.minAge || '-',
+                    maxAge: childData.maxAge || '-',
+                    ageError: childData.ageError || '-',
+                    ifsgReporting: childData.ifsgReporting || '-',
+                    ifsgLab: childData.ifsgLab || '-'
                   });
                 });
               }

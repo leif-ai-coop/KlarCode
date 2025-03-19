@@ -22,7 +22,13 @@ const useCodeSearch = () => {
     sideRequired: false,
     validityKHG: false,
     isAdditionalCode: false,
-    isOneTimeCode: false
+    isOneTimeCode: false,
+    usage295: false,
+    usage301: false,
+    genderRestriction: false,
+    ageRestrictions: false,
+    ageError: false,
+    ifsgInfo: false,
   });
   const [searchType, setSearchType] = useState('ops'); // Default to 'ops'
   

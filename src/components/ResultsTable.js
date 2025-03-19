@@ -124,24 +124,51 @@ const ResultsTable = ({
     }
     
     // Neue Felder für den Export
-    if (showMore.terminalCode) {
+    if (showMore.terminalCode && searchType === 'ops') {
       headers.push({ key: 'terminalCode', label: 'Terminale Schlüsselnummer' });
     }
     
-    if (showMore.sideRequired) {
+    if (showMore.sideRequired && searchType === 'ops') {
       headers.push({ key: 'sideRequired', label: 'Seitenangabe erforderlich' });
     }
     
-    if (showMore.validityKHG) {
+    if (showMore.validityKHG && searchType === 'ops') {
       headers.push({ key: 'validityKHG', label: 'Gültigkeit § 17 KHG' });
     }
     
-    if (showMore.isAdditionalCode) {
+    if (showMore.isAdditionalCode && searchType === 'ops') {
       headers.push({ key: 'isAdditionalCode', label: 'Zusatzkode' });
     }
     
-    if (showMore.isOneTimeCode) {
+    if (showMore.isOneTimeCode && searchType === 'ops') {
       headers.push({ key: 'isOneTimeCode', label: 'Einmalkode' });
+    }
+    
+    // ICD-spezifische Felder
+    if (showMore.usage295 && searchType === 'icd') {
+      headers.push({ key: 'usage295', label: 'Verwendung §295' });
+    }
+    
+    if (showMore.usage301 && searchType === 'icd') {
+      headers.push({ key: 'usage301', label: 'Verwendung §301' });
+    }
+    
+    if (showMore.genderRestriction && searchType === 'icd') {
+      headers.push({ key: 'genderRestriction', label: 'Geschlechtsbezug' });
+    }
+    
+    if (showMore.ageRestrictions && searchType === 'icd') {
+      headers.push({ key: 'minAge', label: 'Untere Altersgrenze' });
+      headers.push({ key: 'maxAge', label: 'Obere Altersgrenze' });
+    }
+    
+    if (showMore.ageError && searchType === 'icd') {
+      headers.push({ key: 'ageError', label: 'Fehlerart bei Altersbezug' });
+    }
+    
+    if (showMore.ifsgInfo && searchType === 'icd') {
+      headers.push({ key: 'ifsgReporting', label: 'IfSG-Meldung' });
+      headers.push({ key: 'ifsgLab', label: 'IfSG-Labor' });
     }
     
     return headers;
@@ -463,6 +490,71 @@ const ResultsTable = ({
             />
           </>
         )}
+        
+        {/* ICD-spezifische Optionen */}
+        {searchType === 'icd' && (
+          <>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={showMore.usage295}
+                  onChange={() => toggleShowMore('usage295')}
+                />
+              }
+              label="Verwendung §295"
+            />
+            
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={showMore.usage301}
+                  onChange={() => toggleShowMore('usage301')}
+                />
+              }
+              label="Verwendung §301"
+            />
+            
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={showMore.genderRestriction}
+                  onChange={() => toggleShowMore('genderRestriction')}
+                />
+              }
+              label="Geschlechtsbezug"
+            />
+            
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={showMore.ageRestrictions}
+                  onChange={() => toggleShowMore('ageRestrictions')}
+                />
+              }
+              label="Altersgrenzen"
+            />
+            
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={showMore.ageError}
+                  onChange={() => toggleShowMore('ageError')}
+                />
+              }
+              label="Fehlerart bei Altersbezug"
+            />
+            
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={showMore.ifsgInfo}
+                  onChange={() => toggleShowMore('ifsgInfo')}
+                />
+              }
+              label="IfSG Informationen"
+            />
+          </>
+        )}
       </Box>
       
       {showMore.childCodes && (
@@ -615,6 +707,101 @@ const ResultsTable = ({
                 </TableCell>
               )}
               
+              {/* ICD-spezifische Spalten */}
+              {showMore.usage295 && searchType === 'icd' && (
+                <TableCell>
+                  <TableSortLabel
+                    active={orderBy === 'usage295'}
+                    direction={orderBy === 'usage295' ? order : 'asc'}
+                    onClick={() => handleRequestSort('usage295')}
+                  >
+                    Verwendung §295
+                  </TableSortLabel>
+                </TableCell>
+              )}
+              
+              {showMore.usage301 && searchType === 'icd' && (
+                <TableCell>
+                  <TableSortLabel
+                    active={orderBy === 'usage301'}
+                    direction={orderBy === 'usage301' ? order : 'asc'}
+                    onClick={() => handleRequestSort('usage301')}
+                  >
+                    Verwendung §301
+                  </TableSortLabel>
+                </TableCell>
+              )}
+              
+              {showMore.genderRestriction && searchType === 'icd' && (
+                <TableCell>
+                  <TableSortLabel
+                    active={orderBy === 'genderRestriction'}
+                    direction={orderBy === 'genderRestriction' ? order : 'asc'}
+                    onClick={() => handleRequestSort('genderRestriction')}
+                  >
+                    Geschlechtsbezug
+                  </TableSortLabel>
+                </TableCell>
+              )}
+              
+              {showMore.ageRestrictions && searchType === 'icd' && (
+                <>
+                  <TableCell>
+                    <TableSortLabel
+                      active={orderBy === 'minAge'}
+                      direction={orderBy === 'minAge' ? order : 'asc'}
+                      onClick={() => handleRequestSort('minAge')}
+                    >
+                      Untere Altersgrenze
+                    </TableSortLabel>
+                  </TableCell>
+                  <TableCell>
+                    <TableSortLabel
+                      active={orderBy === 'maxAge'}
+                      direction={orderBy === 'maxAge' ? order : 'asc'}
+                      onClick={() => handleRequestSort('maxAge')}
+                    >
+                      Obere Altersgrenze
+                    </TableSortLabel>
+                  </TableCell>
+                </>
+              )}
+              
+              {showMore.ageError && searchType === 'icd' && (
+                <TableCell>
+                  <TableSortLabel
+                    active={orderBy === 'ageError'}
+                    direction={orderBy === 'ageError' ? order : 'asc'}
+                    onClick={() => handleRequestSort('ageError')}
+                  >
+                    Fehlerart bei Altersbezug
+                  </TableSortLabel>
+                </TableCell>
+              )}
+              
+              {showMore.ifsgInfo && searchType === 'icd' && (
+                <>
+                  <TableCell>
+                    <TableSortLabel
+                      active={orderBy === 'ifsgReporting'}
+                      direction={orderBy === 'ifsgReporting' ? order : 'asc'}
+                      onClick={() => handleRequestSort('ifsgReporting')}
+                    >
+                      IfSG-Meldung
+                    </TableSortLabel>
+                  </TableCell>
+                  <TableCell>
+                    <TableSortLabel
+                      active={orderBy === 'ifsgLab'}
+                      direction={orderBy === 'ifsgLab' ? order : 'asc'}
+                      onClick={() => handleRequestSort('ifsgLab')}
+                    >
+                      IfSG-Labor
+                    </TableSortLabel>
+                  </TableCell>
+                </>
+              )}
+              
               <TableCell align="right">
                 <Tooltip title="Kopieren">
                   <span>Aktionen</span>
@@ -693,6 +880,37 @@ const ResultsTable = ({
                 
                 {showMore.isOneTimeCode && searchType === 'ops' && (
                   <TableCell>{row.isOneTimeCode || '-'}</TableCell>
+                )}
+                
+                {/* ICD-spezifische Zellen */}
+                {showMore.usage295 && searchType === 'icd' && (
+                  <TableCell>{row.usage295 || '-'}</TableCell>
+                )}
+                
+                {showMore.usage301 && searchType === 'icd' && (
+                  <TableCell>{row.usage301 || '-'}</TableCell>
+                )}
+                
+                {showMore.genderRestriction && searchType === 'icd' && (
+                  <TableCell>{row.genderRestriction || '-'}</TableCell>
+                )}
+                
+                {showMore.ageRestrictions && searchType === 'icd' && (
+                  <>
+                    <TableCell>{row.minAge || '-'}</TableCell>
+                    <TableCell>{row.maxAge || '-'}</TableCell>
+                  </>
+                )}
+                
+                {showMore.ageError && searchType === 'icd' && (
+                  <TableCell>{row.ageError || '-'}</TableCell>
+                )}
+                
+                {showMore.ifsgInfo && searchType === 'icd' && (
+                  <>
+                    <TableCell>{row.ifsgReporting || '-'}</TableCell>
+                    <TableCell>{row.ifsgLab || '-'}</TableCell>
+                  </>
                 )}
                 
                 <TableCell align="right">
