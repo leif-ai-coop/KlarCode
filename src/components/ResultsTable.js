@@ -416,15 +416,18 @@ const ResultsTable = ({
           label="Gruppe anzeigen"
         />
         
-        <FormControlLabel
-          control={
-            <Switch
-              checked={showMore.dreisteller}
-              onChange={() => toggleShowMore('dreisteller')}
-            />
-          }
-          label="Dreisteller anzeigen (nur OPS)"
-        />
+        {/* Dreisteller-Toggle nur bei OPS-Suchen anzeigen */}
+        {searchType === 'ops' && (
+          <FormControlLabel
+            control={
+              <Switch
+                checked={showMore.dreisteller}
+                onChange={() => toggleShowMore('dreisteller')}
+              />
+            }
+            label="Dreisteller anzeigen"
+          />
+        )}
         
         <FormControlLabel
           control={
