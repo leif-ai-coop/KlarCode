@@ -97,9 +97,9 @@ export const parseICDCodes = (content) => {
       }
       
       // Feld 27: IfSG-Meldung
-      const ifsgReporting = parts.length > 26 ? 
-        (parts[26] === 'J' ? 'Ja' : 
-         parts[26] === 'N' ? 'Nein' : '-') : '-';
+      const ifsgReportingRaw = parts.length > 26 ? parts[26] : '';
+      const ifsgReporting = ifsgReportingRaw.trim() === 'J' ? 'Ja' : 
+                            ifsgReportingRaw.trim() === 'N' ? 'Nein' : '-';
       
       // Feld 28: IfSG-Labor
       const ifsgLab = parts.length > 27 ? 
