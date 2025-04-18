@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { Box, Typography, Paper, Accordion, AccordionSummary, AccordionDetails, Chip, List, ListItem, ListItemText, Badge, Button } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import AddIcon from '@mui/icons-material/Add';
@@ -10,6 +10,7 @@ import ArticleIcon from '@mui/icons-material/Article';
 import CompareArrowsIcon from '@mui/icons-material/CompareArrows';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import CircularProgress from '@mui/material/CircularProgress';
 
 // Status-Label-Map für menschenlesbare Beschreibungen
 const STATUS_LABELS = {
@@ -26,6 +27,62 @@ const STATUS_LABELS = {
   deprecated: 'Ersatzlos entfernt',
   redirected: 'Umkodiert'
 };
+
+// Memoized CodeAccordion-Komponente für einzelne Codes
+const CodeAccordion = React.memo(function CodeAccordion({ item, expanded, onToggle, areConsecutiveYears, renderMigrationInfo, renderDiffDetails, getStatusIcon, getStatusStyle, renderSubStatusChip, STATUS_LABELS, selectedCode, getCodeDescription }) {
+  return (
+    <Accordion 
+      key={item.code}
+      expanded={expanded}
+      onChange={onToggle}
+      sx={{ 
+        ...getStatusStyle(item.status), 
+        ml: 4, 
+        mb: 0.5,
+        '&:before': { display: 'none' },
+        boxShadow: 'none',
+        border: '1px solid rgba(0, 0, 0, 0.12)',
+        backgroundColor: selectedCode === item.code ? 'rgba(0, 0, 0, 0.04)' : 'inherit'
+      }}
+      id={`code-${item.code}`}
+    >
+      <AccordionSummary 
+        expandIcon={<ExpandMoreIcon />}
+        sx={{ minHeight: 'unset', '& .MuiAccordionSummary-content': { margin: '8px 0' } }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+          {getStatusIcon(item)}
+          <Typography sx={{ ml: 1, flexGrow: 1 }}>
+            {item.code}
+            {areConsecutiveYears && getCodeDescription(item) && 
+              <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+                — {getCodeDescription(item)}
+              </Typography>
+            }
+          </Typography>
+          <Box>
+            <Chip 
+              label={STATUS_LABELS[item.status]} 
+              size="small" 
+              sx={{ 
+                ml: 1,
+                bgcolor: item.status === 'added' ? '#7D9692' :
+                         item.status === 'removed' ? '#C1666B' : 
+                         '#E3B23C',
+                color: 'white'
+              }}
+            />
+            {renderSubStatusChip(item)}
+          </Box>
+        </Box>
+      </AccordionSummary>
+      <AccordionDetails sx={{ p: 1 }}>
+        {areConsecutiveYears && renderMigrationInfo(item)}
+        {renderDiffDetails(item)}
+      </AccordionDetails>
+    </Accordion>
+  );
+});
 
 export default function CatalogDiffTree({ diffTree }) {
   // Expandierte Nodes verwalten
@@ -668,137 +725,213 @@ export default function CatalogDiffTree({ diffTree }) {
     );
   };
 
-  // Render eines Codes
-  const renderCode = (item) => (
-    <Accordion 
-      key={item.code}
+  // Memoized renderCode
+  const renderCode = useCallback((item) => (
+    <CodeAccordion
+      item={item}
       expanded={!!expandedNodes[`code-${item.code}`] || selectedCode === item.code}
-      onChange={() => toggleNode(`code-${item.code}`)}
-      sx={{ 
-        ...getStatusStyle(item.status), 
-        ml: 4, 
-        mb: 0.5,
-        '&:before': { display: 'none' },
-        boxShadow: 'none',
-        border: '1px solid rgba(0, 0, 0, 0.12)',
-        backgroundColor: selectedCode === item.code ? 'rgba(0, 0, 0, 0.04)' : 'inherit'
-      }}
-      id={`code-${item.code}`}
-    >
-      <AccordionSummary 
-        expandIcon={<ExpandMoreIcon />}
-        sx={{ minHeight: 'unset', '& .MuiAccordionSummary-content': { margin: '8px 0' } }}
+      onToggle={() => toggleNode(`code-${item.code}`)}
+      areConsecutiveYears={areConsecutiveYears}
+      renderMigrationInfo={renderMigrationInfo}
+      renderDiffDetails={renderDiffDetails}
+      getStatusIcon={getStatusIcon}
+      getStatusStyle={getStatusStyle}
+      renderSubStatusChip={renderSubStatusChip}
+      STATUS_LABELS={STATUS_LABELS}
+      selectedCode={selectedCode}
+      getCodeDescription={getCodeDescription}
+    />
+  ), [expandedNodes, selectedCode, areConsecutiveYears, renderMigrationInfo, renderDiffDetails, getStatusIcon, getStatusStyle, renderSubStatusChip, getCodeDescription, toggleNode]);
+
+  // State für Lazy Loading
+  const [loadedKapitel, setLoadedKapitel] = useState({}); // { kapitelId: { ...gruppen } }
+  const [loadedGroups, setLoadedGroups] = useState({});   // { groupId: [codes] }
+  const [loadingKapitel, setLoadingKapitel] = useState({}); // { kapitelId: true/false }
+  const [loadingGroup, setLoadingGroup] = useState({});     // { groupId: true/false }
+
+  // Hilfsfunktion: Extrahiere Gruppen für ein Kapitel
+  const extractGroupsForKapitel = useCallback((kapitel) => {
+    // Nutze die Logik aus treeData, aber nur für das gewünschte Kapitel
+    const isICD = catalogType === 'icd';
+    const extractGroup = (code) => {
+      if (isICD) {
+        const match = code.match(/^([A-Z]\d{2})/);
+        return match ? match[1] : null;
+      } else {
+        const dashMatch = code.match(/^(\d-\d{2})/);
+        if (dashMatch) return dashMatch[1];
+        const dotMatch = code.match(/^(\d\.\d{2})/);
+        if (dotMatch) return dotMatch[1];
+        const digitMatch = code.match(/^(\d)(\d{1,2})/);
+        if (digitMatch) {
+          return `${digitMatch[1]}-${digitMatch[2].padEnd(2, '0')}`;
+        }
+        const simpleMatch = code.match(/^(\d)/);
+        return simpleMatch ? `${simpleMatch[1]}-00` : null;
+      }
+    };
+    // Filtere alle Codes, die zu diesem Kapitel gehören
+    const kapitelKey = kapitel.title.match(/^(\d|[A-Z])/)[0];
+    const codesForKapitel = diffsOnly.filter(item => {
+      if (isICD) {
+        return item.code.startsWith(kapitelKey);
+      } else {
+        return item.code.startsWith(kapitelKey);
+      }
+    });
+    // Baue Gruppenstruktur
+    const groupMap = {};
+    codesForKapitel.forEach(item => {
+      const group = extractGroup(item.code);
+      if (!group) return;
+      if (!groupMap[group]) {
+        groupMap[group] = {
+          id: `group-${group}`,
+          title: `Gruppe ${group}`,
+          children: [],
+          stats: { added: { total: 0, new: 0, replacement: 0 }, removed: { total: 0, deprecated: 0, redirected: 0 }, changed: 0, total: 0, itemCount: 0 }
+        };
+      }
+      groupMap[group].children.push(item);
+      groupMap[group].stats.itemCount++;
+      if (item.status === 'added') {
+        groupMap[group].stats.added.total++;
+        if (item.subStatus === 'new') groupMap[group].stats.added.new++;
+        if (item.subStatus === 'replacement') groupMap[group].stats.added.replacement++;
+      } else if (item.status === 'removed') {
+        groupMap[group].stats.removed.total++;
+        if (item.subStatus === 'deprecated') groupMap[group].stats.removed.deprecated++;
+        if (item.subStatus === 'redirected') groupMap[group].stats.removed.redirected++;
+      } else if (item.status === 'changed') {
+        groupMap[group].stats.changed++;
+      }
+      groupMap[group].stats.total++;
+    });
+    return groupMap;
+  }, [diffsOnly, catalogType]);
+
+  // Hilfsfunktion: Extrahiere Codes für eine Gruppe
+  const extractCodesForGroup = useCallback((group) => {
+    // group.children ist bereits die Liste der Codes
+    return group.children.sort((a, b) => a.code.localeCompare(b.code));
+  }, []);
+
+  // Lazy Loading für Kapitel
+  const handleKapitelExpand = useCallback((kapitel) => {
+    if (loadedKapitel[kapitel.id] || loadingKapitel[kapitel.id]) return;
+    setLoadingKapitel(prev => ({ ...prev, [kapitel.id]: true }));
+    setTimeout(() => {
+      const groups = extractGroupsForKapitel(kapitel);
+      setLoadedKapitel(prev => ({ ...prev, [kapitel.id]: groups }));
+      setLoadingKapitel(prev => ({ ...prev, [kapitel.id]: false }));
+    }, 0); // Simuliere async, kann später durch echten API-Call ersetzt werden
+  }, [extractGroupsForKapitel, loadedKapitel, loadingKapitel]);
+
+  // Lazy Loading für Gruppen
+  const handleGroupExpand = useCallback((group, kapitelId) => {
+    if (loadedGroups[group.id] || loadingGroup[group.id]) return;
+    setLoadingGroup(prev => ({ ...prev, [group.id]: true }));
+    setTimeout(() => {
+      const codes = extractCodesForGroup(group);
+      setLoadedGroups(prev => ({ ...prev, [group.id]: codes }));
+      setLoadingGroup(prev => ({ ...prev, [group.id]: false }));
+    }, 0);
+  }, [extractCodesForGroup, loadedGroups, loadingGroup]);
+
+  // Memoized renderGroup
+  const renderGroup = useCallback((group, kapitelId) => {
+    const isExpanded = !!expandedNodes[group.id];
+    const isLoading = loadingGroup[group.id];
+    const codes = loadedGroups[group.id];
+    return (
+      <Accordion 
+        key={group.id}
+        expanded={isExpanded}
+        onChange={() => {
+          toggleNode(group.id);
+          if (!codes && !isLoading && !loadedGroups[group.id]) handleGroupExpand(group, kapitelId);
+        }}
+        sx={{ 
+          ml: 2, 
+          mb: 0.5,
+          '&:before': { display: 'none' },
+          boxShadow: 'none',
+          border: '1px solid rgba(0, 0, 0, 0.12)'
+        }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-          {getStatusIcon(item)}
-          <Typography sx={{ ml: 1, flexGrow: 1 }}>
-            {item.code}
-            {areConsecutiveYears && getCodeDescription(item) && 
+        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+          <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+            {expandedNodes[group.id] ? 
+              <FolderOpenIcon fontSize="small" sx={{ mr: 1, color: 'primary.main' }} /> : 
+              <FolderIcon fontSize="small" sx={{ mr: 1, color: 'primary.main' }} />
+            }
+            <Typography sx={{ flexGrow: 1 }}>
+              {group.title}
               <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 1 }}>
-                — {getCodeDescription(item)}
+                ({group.stats.total} {group.stats.total === 1 ? 'Änderung' : 'Änderungen'})
               </Typography>
-            }
-          </Typography>
-          <Box>
-            <Chip 
-              label={STATUS_LABELS[item.status]} 
-              size="small" 
-              sx={{ 
-                ml: 1,
-                bgcolor: item.status === 'added' ? '#7D9692' :
-                         item.status === 'removed' ? '#C1666B' : 
-                         '#E3B23C',
-                color: 'white'
-              }}
-            />
-            {renderSubStatusChip(item)}
+            </Typography>
+            {renderStatusBadges(group.stats)}
           </Box>
-        </Box>
-      </AccordionSummary>
-      <AccordionDetails sx={{ p: 1 }}>
-        {areConsecutiveYears && renderMigrationInfo(item)}
-        {renderDiffDetails(item)}
-      </AccordionDetails>
-    </Accordion>
-  );
+        </AccordionSummary>
+        <AccordionDetails sx={{ p: 0 }}>
+          {isLoading && <Box sx={{ p: 2, textAlign: 'center' }}><CircularProgress size={24} /></Box>}
+          {codes && codes.map(renderCode)}
+        </AccordionDetails>
+      </Accordion>
+    );
+  }, [expandedNodes, renderCode, toggleNode, loadedGroups, loadingGroup, handleGroupExpand, renderStatusBadges]);
 
-  // Render einer Gruppe
-  const renderGroup = (group) => (
-    <Accordion 
-      key={group.id}
-      expanded={!!expandedNodes[group.id]}
-      onChange={() => toggleNode(group.id)}
-      sx={{ 
-        ml: 2, 
-        mb: 0.5,
-        '&:before': { display: 'none' },
-        boxShadow: 'none',
-        border: '1px solid rgba(0, 0, 0, 0.12)'
-      }}
-    >
-      <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-        <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-          {expandedNodes[group.id] ? 
-            <FolderOpenIcon fontSize="small" sx={{ mr: 1, color: 'primary.main' }} /> : 
-            <FolderIcon fontSize="small" sx={{ mr: 1, color: 'primary.main' }} />
-          }
-          <Typography sx={{ flexGrow: 1 }}>
-            {group.title}
-            <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 1 }}>
-              ({group.stats.total} {group.stats.total === 1 ? 'Änderung' : 'Änderungen'})
-            </Typography>
-          </Typography>
-          {renderStatusBadges(group.stats)}
-        </Box>
-      </AccordionSummary>
-      <AccordionDetails sx={{ p: 0 }}>
-        {group.children
-          .sort((a, b) => a.code.localeCompare(b.code))
-          .map(renderCode)}
-      </AccordionDetails>
-    </Accordion>
-  );
-
-  // Render eines Kapitels
-  const renderKapitel = (kapitel) => (
-    <Accordion 
-      key={kapitel.id}
-      expanded={!!expandedNodes[kapitel.id]}
-      onChange={() => toggleNode(kapitel.id)}
-      sx={{ mb: 1 }}
-    >
-      <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-        <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-          {expandedNodes[kapitel.id] ? 
-            <FolderOpenIcon fontSize="small" sx={{ mr: 1, color: 'primary.main' }} /> : 
-            <FolderIcon fontSize="small" sx={{ mr: 1, color: 'primary.main' }} />
-          }
-          <Typography variant="subtitle1" sx={{ flexGrow: 1 }}>
-            {kapitel.title}
-            <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 1 }}>
-              ({kapitel.stats.total} {kapitel.stats.total === 1 ? 'Änderung' : 'Änderungen'})
-            </Typography>
-          </Typography>
-          {renderStatusBadges(kapitel.stats)}
-        </Box>
-      </AccordionSummary>
-      <AccordionDetails sx={{ p: 0 }}>
-        {Object.values(kapitel.children)
-          .sort((a, b) => {
-            // Sortieren je nach Katalogtyp
-            if (catalogType === 'icd') {
-              return a.title.localeCompare(b.title);
-            } else {
-              // Für OPS: Numerische Sortierung wenn möglich
-              const numA = a.title.match(/\d+/)?.[0] || '0';
-              const numB = b.title.match(/\d+/)?.[0] || '0';
-              return parseInt(numA) - parseInt(numB);
+  // Memoized renderKapitel
+  const renderKapitel = useCallback((kapitel) => {
+    const isExpanded = !!expandedNodes[kapitel.id];
+    const isLoading = loadingKapitel[kapitel.id];
+    const groups = loadedKapitel[kapitel.id];
+    return (
+      <Accordion 
+        key={kapitel.id}
+        expanded={isExpanded}
+        onChange={() => {
+          toggleNode(kapitel.id);
+          if (!groups && !isLoading && !loadedKapitel[kapitel.id]) handleKapitelExpand(kapitel);
+        }}
+        sx={{ mb: 1 }}
+      >
+        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+          <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+            {expandedNodes[kapitel.id] ? 
+              <FolderOpenIcon fontSize="small" sx={{ mr: 1, color: 'primary.main' }} /> : 
+              <FolderIcon fontSize="small" sx={{ mr: 1, color: 'primary.main' }} />
             }
-          })
-          .map(renderGroup)}
-      </AccordionDetails>
-    </Accordion>
-  );
+            <Typography variant="subtitle1" sx={{ flexGrow: 1 }}>
+              {kapitel.title}
+              <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+                ({kapitel.stats.total} {kapitel.stats.total === 1 ? 'Änderung' : 'Änderungen'})
+              </Typography>
+            </Typography>
+            {renderStatusBadges(kapitel.stats)}
+          </Box>
+        </AccordionSummary>
+        <AccordionDetails sx={{ p: 0 }}>
+          {isLoading && <Box sx={{ p: 2, textAlign: 'center' }}><CircularProgress size={24} /></Box>}
+          {groups && Object.values(groups)
+            .sort((a, b) => {
+              if (catalogType === 'icd') {
+                return a.title.localeCompare(b.title);
+              } else {
+                const numA = a.title.match(/\d+/)?.[0] || '0';
+                const numB = b.title.match(/\d+/)?.[0] || '0';
+                return parseInt(numA) - parseInt(numB);
+              }
+            })
+            .map(group => renderGroup(group, kapitel.id))}
+        </AccordionDetails>
+      </Accordion>
+    );
+  }, [expandedNodes, loadedKapitel, loadingKapitel, handleKapitelExpand, renderGroup, renderStatusBadges, catalogType, toggleNode]);
+
+  // Kapitel-Liste vorbereiten (treeData nur Kapitel)
+  const kapitelList = useMemo(() => treeData.map(k => ({ id: k.id, title: k.title, stats: k.stats })), [treeData]);
 
   // Render der Statistik
   const renderStats = () => (
@@ -853,7 +986,7 @@ export default function CatalogDiffTree({ diffTree }) {
         </Typography>
       ) : (
         <Box>
-          {treeData.map(renderKapitel)}
+          {kapitelList.map(renderKapitel)}
         </Box>
       )}
     </Paper>
