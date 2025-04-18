@@ -831,35 +831,6 @@ export default function CatalogDiffTree({ diffTree }) {
           <Typography variant="subtitle2" sx={{ color: '#E3B23C' }}>Geändert: {stats.changed}</Typography>
         </Box>
       </Box>
-      
-      {/* Legende für die automatische Überleitbarkeit */}
-      {areConsecutiveYears && (
-        <Box sx={{ mt: 2, borderTop: '1px solid rgba(0,0,0,0.12)', pt: 2 }}>
-          <Typography variant="subtitle2" gutterBottom>Legende zur Überleitbarkeit:</Typography>
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <Chip 
-                label="Automatisch überleitbar" 
-                size="small"
-                sx={{ mr: 1, bgcolor: '#7D9692', color: 'white' }}
-              />
-              <Typography variant="body2">
-                Code kann systemseitig automatisch umgesetzt werden
-              </Typography>
-            </Box>
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <Chip 
-                label="Manuell überleiten" 
-                size="small" 
-                sx={{ mr: 1, bgcolor: '#C1666B', color: 'white' }}
-              />
-              <Typography variant="body2">
-                Manuelle fachliche Prüfung erforderlich
-              </Typography>
-            </Box>
-          </Box>
-        </Box>
-      )}
     </Box>
   );
 
