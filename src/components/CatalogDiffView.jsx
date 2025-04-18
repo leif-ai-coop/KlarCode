@@ -76,11 +76,11 @@ export default function CatalogDiffView() {
   };
 
   return (
-    <Box sx={{ p: 3, maxWidth: 900, mx: 'auto' }}>
-      <Typography variant="h5" gutterBottom>
+    <Box sx={{ mb: 3 }}>
+      <Typography variant="h6" gutterBottom>
         Katalog-Diff (ICD/OPS) zwischen zwei Jahren
       </Typography>
-      <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
+      <Box sx={{ display: 'flex', gap: 2, mb: 2, alignItems: 'flex-start' }}>
         <FormControl sx={{ minWidth: 120 }}>
           <InputLabel id="catalog-type-label">Katalog</InputLabel>
           <Select
@@ -125,8 +125,9 @@ export default function CatalogDiffView() {
           color="primary"
           disabled={!catalogType || !yearOld || !yearNew || yearOld === yearNew || loading}
           onClick={handleCompare}
+          sx={{ minWidth: 120 }}
         >
-          Vergleichen
+          VERGLEICHEN
         </Button>
       </Box>
       {loading && <CircularProgress sx={{ my: 3 }} />}

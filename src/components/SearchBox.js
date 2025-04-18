@@ -94,15 +94,7 @@ const SearchBox = ({
   };
 
   return (
-    <Paper 
-      elevation={3} 
-      sx={{ 
-        p: 3, 
-        mb: 3, 
-        borderRadius: 2,
-        backgroundColor: theme => theme.palette.mode === 'dark' ? 'rgba(66, 66, 66, 0.9)' : 'white'
-      }}
-    >
+    <Box sx={{ mb: 3 }}>
       <Typography variant="h6" gutterBottom>
         ICD/OPS Code-Suche
       </Typography>
@@ -214,7 +206,7 @@ const SearchBox = ({
           LÖSCHEN
         </Button>
       </Box>
-    </Paper>
+    </Box>
   );
 };
 
