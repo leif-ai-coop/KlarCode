@@ -80,7 +80,7 @@ export default function CatalogDiffView() {
   return (
     <Box sx={{ mb: 3 }}>
       <Typography variant="h6" gutterBottom>
-        Katalog-Diff (ICD/OPS) zwischen zwei Jahren
+        Katalog-Delta (ICD/OPS) zwischen zwei Jahren
       </Typography>
       <Box sx={{ display: 'flex', gap: 2, mb: 2, alignItems: 'flex-start' }}>
         <FormControl sx={{ minWidth: 120 }}>

@@ -174,7 +174,7 @@ function App() {
             <Box sx={{ p: 3, borderRadius: 3, boxShadow: 2, background: theme.palette.background.paper }}>
               <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)} sx={{ mb: 2 }}>
                 <Tab label="Suche" />
-                <Tab label="Katalog-Diff" />
+                <Tab label="ICD/OPS-Delta" />
               </Tabs>
               {activeTab === 0 && (
                 <>
