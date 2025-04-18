@@ -13,6 +13,9 @@ import Footer from './components/Footer';
 import SearchBox from './components/SearchBox';
 import ResultsTable from './components/ResultsTable';
 import useCodeSearch from './hooks/useCodeSearch';
+import Tabs from '@mui/material/Tabs';
+import Tab from '@mui/material/Tab';
+import CatalogDiffView from './components/CatalogDiffView';
 
 // Create a theme based on mode (light/dark)
 const getDesignTokens = (mode) => ({
@@ -130,6 +133,7 @@ function App() {
   });
   
   const [darkMode, setDarkMode] = useState(false);
+  const [activeTab, setActiveTab] = useState(0); // 0 = Suche, 1 = Diff
 
   useEffect(() => {
     // Dark-Mode-Klasse zum HTML-Element hinzufügen/entfernen
@@ -167,33 +171,45 @@ function App() {
           <Header toggleColorMode={toggleColorMode} />
           
           <Container maxWidth="lg" sx={{ mt: 4, mb: 4, flex: 1 }}>
-            <SearchBox
-              searchInput={searchInput}
-              onInputChange={handleInputChange}
-              onSearch={handleSearch}
-              onClear={handleClear}
-              isLoading={isLoading}
-              selectedYear={selectedYear}
-              onYearChange={handleYearChange}
-              errors={errors}
-            />
-            
-            {isLoading ? (
-              <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-                <CircularProgress />
-              </Box>
-            ) : (
-              <ResultsTable
-                results={searchResults}
-                duplicatesRemoved={duplicatesRemoved}
-                removedDuplicates={removedDuplicates}
-                showMore={showMore}
-                toggleShowMore={toggleShowMore}
-                searchType={searchType}
-                onCopyCode={handleCopyCode}
-                errors={errors}
-              />
-            )}
+            <Box sx={{ p: 3, borderRadius: 3, boxShadow: 2, background: theme.palette.background.paper }}>
+              <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)} sx={{ mb: 2 }}>
+                <Tab label="Suche" />
+                <Tab label="Katalog-Diff" />
+              </Tabs>
+              {activeTab === 0 && (
+                <>
+                  <SearchBox
+                    searchInput={searchInput}
+                    onInputChange={handleInputChange}
+                    onSearch={handleSearch}
+                    onClear={handleClear}
+                    isLoading={isLoading}
+                    selectedYear={selectedYear}
+                    onYearChange={handleYearChange}
+                    errors={errors}
+                  />
+                  {isLoading ? (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                      <CircularProgress />
+                    </Box>
+                  ) : (
+                    <ResultsTable
+                      results={searchResults}
+                      duplicatesRemoved={duplicatesRemoved}
+                      removedDuplicates={removedDuplicates}
+                      showMore={showMore}
+                      toggleShowMore={toggleShowMore}
+                      searchType={searchType}
+                      onCopyCode={handleCopyCode}
+                      errors={errors}
+                    />
+                  )}
+                </>
+              )}
+              {activeTab === 1 && (
+                <CatalogDiffView />
+              )}
+            </Box>
           </Container>
           
           <Footer />
