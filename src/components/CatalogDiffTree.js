@@ -403,17 +403,17 @@ export default function CatalogDiffTree({ diffTree }) {
   const renderStatusBadges = (stats) => (
     <Box sx={{ display: 'flex', gap: 1, ml: 2 }}>
       {stats.added.total > 0 && (
-        <Badge badgeContent={stats.added.total} sx={{ '& .MuiBadge-badge': { fontSize: '0.7rem', bgcolor: '#7D9692', color: 'white' } }}>
+        <Badge badgeContent={stats.added.total} max={999} sx={{ '& .MuiBadge-badge': { fontSize: '0.7rem', bgcolor: '#7D9692', color: 'white' } }}>
           <Chip size="small" label={STATUS_LABELS.added} sx={{ color: '#7D9692', borderColor: '#7D9692' }} variant="outlined" />
         </Badge>
       )}
       {stats.removed.total > 0 && (
-        <Badge badgeContent={stats.removed.total} sx={{ '& .MuiBadge-badge': { fontSize: '0.7rem', bgcolor: '#C1666B', color: 'white' } }}>
+        <Badge badgeContent={stats.removed.total} max={999} sx={{ '& .MuiBadge-badge': { fontSize: '0.7rem', bgcolor: '#C1666B', color: 'white' } }}>
           <Chip size="small" label={STATUS_LABELS.removed} sx={{ color: '#C1666B', borderColor: '#C1666B' }} variant="outlined" />
         </Badge>
       )}
       {stats.changed > 0 && (
-        <Badge badgeContent={stats.changed} sx={{ '& .MuiBadge-badge': { fontSize: '0.7rem', bgcolor: '#E3B23C', color: 'white' } }}>
+        <Badge badgeContent={stats.changed} max={999} sx={{ '& .MuiBadge-badge': { fontSize: '0.7rem', bgcolor: '#E3B23C', color: 'white' } }}>
           <Chip size="small" label={STATUS_LABELS.changed} sx={{ color: '#E3B23C', borderColor: '#E3B23C' }} variant="outlined" />
         </Badge>
       )}
