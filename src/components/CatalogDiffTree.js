@@ -55,7 +55,10 @@ export default function CatalogDiffTree({ diffTree }) {
   }, [diffTree]);
 
   // Filtere nur die Einträge mit Status != 'unchanged'
-  const diffsOnly = useMemo(() => diffTree.filter(item => item.status !== 'unchanged'), [diffTree]);
+  const diffsOnly = useMemo(() => {
+    // Nur geänderte, hinzugefügte und entfernte Codes - keine unveränderten
+    return diffTree.filter(item => item.status !== 'unchanged');
+  }, [diffTree]);
   
   // Zähle die verschiedenen Diff-Typen für die Statistik
   const stats = useMemo(() => {
@@ -71,21 +74,36 @@ export default function CatalogDiffTree({ diffTree }) {
         redirected: diffTree.filter(d => d.status === 'removed' && d.subStatus === 'redirected').length
       },
       changed: diffTree.filter(d => d.status === 'changed').length,
-      total: diffTree.length
+      total: diffTree.length,
+      // Count only changes, not unchanged items
+      totalChanges: diffTree.filter(d => d.status !== 'unchanged').length
     };
     return result;
   }, [diffTree]);
 
   // Hilfsfunktion: Finde ein Code-Element anhand seines Codes
   const findCodeElement = (code) => {
-    const found = diffTree.find(item => item.code === code);
+    if (!code) return null;
+    
+    // Case-insensitive search for the code
+    const lowerCode = code.toLowerCase();
+    const found = diffTree.find(item => item.code && item.code.toLowerCase() === lowerCode);
+    
     return found ? found.code : null;
   };
   
   // Springe zu einem Code in der Ansicht (z.B. bei Umsteiger-Codes)
   const jumpToCode = (code) => {
+    if (!code) {
+      console.error("Tried to jump to a code, but no code was provided");
+      return;
+    }
+    
+    console.log(`Attempting to jump to code: ${code}`);
     const targetCode = findCodeElement(code);
+    
     if (targetCode) {
+      console.log(`Found code ${targetCode}, scrolling to it`);
       setSelectedCode(targetCode);
       
       // Expandiere alle notwendigen Nodes (hierarchisch durch Kapitel/Gruppen)
@@ -99,7 +117,13 @@ export default function CatalogDiffTree({ diffTree }) {
       const element = document.getElementById(`code-${targetCode}`);
       if (element) {
         element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else {
+        console.error(`Element with ID code-${targetCode} not found in DOM`);
       }
+    } else {
+      console.error(`Code ${code} could not be found in the diff tree`);
+      // Show an alert to the user
+      alert(`Der Code ${code} konnte nicht gefunden werden. Möglicherweise ist er unverändert und daher in der Diff-Ansicht nicht sichtbar.`);
     }
   };
 
@@ -197,7 +221,8 @@ export default function CatalogDiffTree({ diffTree }) {
             added: { total: 0, new: 0, replacement: 0 },
             removed: { total: 0, deprecated: 0, redirected: 0 },
             changed: 0, 
-            total: 0 
+            total: 0,
+            itemCount: 0  // Total count including unchanged items
           }
         };
       }
@@ -212,7 +237,8 @@ export default function CatalogDiffTree({ diffTree }) {
             added: { total: 0, new: 0, replacement: 0 },
             removed: { total: 0, deprecated: 0, redirected: 0 },
             changed: 0, 
-            total: 0 
+            total: 0,
+            itemCount: 0  // Total count including unchanged items
           }
         };
         
@@ -224,6 +250,15 @@ export default function CatalogDiffTree({ diffTree }) {
       groupMap[group].children.push(item);
       
       // Statistiken aktualisieren
+      groupMap[group].stats.itemCount++;
+      kapitelMap[kapitel].stats.itemCount++;
+      
+      // Only count as changes if the status is not 'unchanged'
+      if (item.status === 'unchanged') {
+        // Don't increment change counters for unchanged items
+        return;
+      }
+      
       if (item.status === 'added') {
         groupMap[group].stats.added.total++;
         kapitelMap[kapitel].stats.added.total++;
@@ -253,6 +288,7 @@ export default function CatalogDiffTree({ diffTree }) {
         kapitelMap[kapitel].stats.changed++;
       }
       
+      // Only increment total for non-unchanged items
       groupMap[group].stats.total++;
       kapitelMap[kapitel].stats.total++;
     });
@@ -389,6 +425,40 @@ export default function CatalogDiffTree({ diffTree }) {
   const renderMigrationInfo = (item) => {
     if (!item.migrationTarget && !item.migrationSource) return null;
     
+    // Helper to get the status label of a code
+    const getCodeStatusLabel = (code) => {
+      const targetItem = diffTree.find(item => item.code && item.code.toLowerCase() === code.toLowerCase());
+      if (!targetItem) return "Nicht im Diff vorhanden";
+      
+      let statusLabel = STATUS_LABELS[targetItem.status] || "Unbekannter Status";
+      
+      // Spezifischere Status-Information basierend auf subStatus
+      if (targetItem.status === 'added' && targetItem.subStatus) {
+        statusLabel += ` (${targetItem.subStatus === 'new' ? STATUS_LABELS.new : STATUS_LABELS.replacement})`;
+      }
+      else if (targetItem.status === 'removed' && targetItem.subStatus) {
+        statusLabel += ` (${targetItem.subStatus === 'deprecated' ? STATUS_LABELS.deprecated : STATUS_LABELS.redirected})`;
+      }
+      
+      return statusLabel;
+    };
+    
+    // Helper to get the description of a code
+    const getCodeDescriptionByCode = (code) => {
+      const targetItem = diffTree.find(item => item.code && item.code.toLowerCase() === code.toLowerCase());
+      if (!targetItem) return "Keine Beschreibung verfügbar";
+      
+      const isICD = catalogType === 'icd';
+      
+      if (isICD) {
+        return targetItem.newCode?.beschreibung || targetItem.oldCode?.beschreibung || 'Keine Beschreibung verfügbar';
+      } else {
+        // OPS verwendet oft 'titel' statt 'beschreibung'
+        return targetItem.newCode?.titel || targetItem.oldCode?.titel || 
+               targetItem.newCode?.beschreibung || targetItem.oldCode?.beschreibung || 'Keine Beschreibung verfügbar';
+      }
+    };
+    
     return (
       <Box sx={{ pl: 4, pt: 1, mb: 2 }}>
         {item.migrationTarget && (
@@ -398,14 +468,18 @@ export default function CatalogDiffTree({ diffTree }) {
               <ArrowForwardIcon fontSize="small" color="primary" sx={{ mr: 1 }} />
               <Typography variant="body2">
                 Dieser Code wurde ersetzt durch: 
-                <Button 
-                  variant="text" 
-                  size="small" 
-                  sx={{ ml: 1, textTransform: 'none' }}
-                  onClick={() => jumpToCode(item.migrationTarget)}
-                >
-                  {item.migrationTarget}
-                </Button>
+                <Chip
+                  label={item.migrationTarget}
+                  size="small"
+                  sx={{ 
+                    ml: 1, 
+                    '&:hover': { 
+                      backgroundColor: 'rgba(0, 0, 0, 0.08)',
+                      cursor: 'help'
+                    } 
+                  }}
+                  title={`${getCodeDescriptionByCode(item.migrationTarget)} (${getCodeStatusLabel(item.migrationTarget)})`}
+                />
                 
                 {/* Überleitbarkeits-Badge für vorwärts (von alt nach neu) */}
                 {typeof item.autoForward !== 'undefined' && (
@@ -430,15 +504,20 @@ export default function CatalogDiffTree({ diffTree }) {
                 Dieser Code ersetzt:
                 <Box component="span">
                   {item.migrationSource.map((source, index) => (
-                    <Button 
+                    <Chip
                       key={source}
-                      variant="text" 
-                      size="small" 
-                      sx={{ ml: 1, textTransform: 'none' }}
-                      onClick={() => jumpToCode(source)}
-                    >
-                      {source}{index < item.migrationSource.length - 1 ? ',' : ''}
-                    </Button>
+                      label={source}
+                      size="small"
+                      sx={{ 
+                        ml: 1,
+                        mr: index < item.migrationSource.length - 1 ? 0.5 : 0,
+                        '&:hover': { 
+                          backgroundColor: 'rgba(0, 0, 0, 0.08)',
+                          cursor: 'help'
+                        } 
+                      }}
+                      title={`${getCodeDescriptionByCode(source)} (${getCodeStatusLabel(source)})`}
+                    />
                   ))}
                   
                   {/* Überleitbarkeits-Badge für rückwärts (von neu nach alt) */}
@@ -706,7 +785,7 @@ export default function CatalogDiffTree({ diffTree }) {
           {catalogType.toUpperCase()} Diff-Ergebnisse
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          Insgesamt {stats.total} Codes verglichen, davon {stats.added.total + stats.removed.total + stats.changed} mit Unterschieden
+          Insgesamt {stats.total} Codes verglichen, davon {stats.totalChanges} mit Unterschieden
         </Typography>
       </Box>
       
