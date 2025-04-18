@@ -176,6 +176,14 @@ export function diffCatalogs({ oldCatalog, newCatalog, type, migrationData = nul
     let diffDetails = null;
     let migrationTarget = null;
     let migrationSource = null;
+    
+    // OPS-spezifische Umsteiger-Informationen
+    let sourceRequiresAdditionalCode = null;
+    let targetRequiresAdditionalCode = null;
+    let forwardAutomaticMapping = null;
+    let backwardAutomaticMapping = null;
+    
+    // ICD-spezifische Umsteiger-Informationen
     let autoForward = undefined;
     let autoBackward = undefined;
     
@@ -189,29 +197,38 @@ export function diffCatalogs({ oldCatalog, newCatalog, type, migrationData = nul
         
         // Überprüfen ob es ein Array von Code-Objekten oder einfach ein Array von Strings ist
         if (Array.isArray(migrationsInfo)) {
-          if (migrationsInfo.length > 0 && typeof migrationsInfo[0] === 'object') {
-            // Neues Format: Array von Objekten mit Überleitbarkeitsinformationen
-            migrationSource = migrationsInfo.map(info => info.code);
-            // Setzen wir autoForward und autoBackward basierend auf dem ersten Eintrag
-            // (könnte erweitert werden, um alle Einträge zu berücksichtigen)
-            autoForward = migrationsInfo[0].autoForward;
-            autoBackward = migrationsInfo[0].autoBackward;
-          } else {
-            // Altes Format: Array von Strings (direkten Codes)
-            migrationSource = migrationsInfo;
-            autoForward = undefined;
-            autoBackward = undefined;
+          if (migrationsInfo.length > 0) {
+            if (typeof migrationsInfo[0] === 'object') {
+              // Format für ICD und neues OPS-Format
+              if (type === 'ops') {
+                // OPS-Format
+                migrationSource = migrationsInfo.map(info => info.code);
+                
+                // OPS-spezifische Felder
+                const firstInfo = migrationsInfo[0];
+                sourceRequiresAdditionalCode = firstInfo.sourceRequiresAdditionalCode;
+                targetRequiresAdditionalCode = firstInfo.targetRequiresAdditionalCode;
+                forwardAutomaticMapping = firstInfo.forwardAutomaticMapping; 
+                backwardAutomaticMapping = firstInfo.backwardAutomaticMapping;
+              } else {
+                // ICD-Format
+                migrationSource = migrationsInfo.map(info => info.code);
+                autoForward = migrationsInfo[0].autoForward;
+                autoBackward = migrationsInfo[0].autoBackward;
+              }
+            } else {
+              // Altes Format: Array von Strings (direkten Codes)
+              migrationSource = migrationsInfo;
+            }
           }
         } else {
-          // Einzelner Wert
+          // Einzelner Wert (altes Format oder Direktzuweisung)
           migrationSource = [migrationsInfo];
-          autoForward = undefined;
-          autoBackward = undefined;
         }
       } else {
         subStatus = 'new';
       }
-    } 
+    }
     else if (!newCode) {
       codeStatus = 'removed';
       
@@ -220,18 +237,26 @@ export function diffCatalogs({ oldCatalog, newCatalog, type, migrationData = nul
         subStatus = 'redirected';
         const migrationInfo = migrationData.fromOld[codeKey];
         
-        // Überprüfe, ob migrationInfo ein Objekt oder ein String ist (Kompatibilität mit älterem Format)
+        // Überprüfe, ob migrationInfo ein Objekt oder ein String ist
         if (typeof migrationInfo === 'object' && migrationInfo !== null) {
-          migrationTarget = migrationInfo.code;
-          // Überleitbarkeitsinformationen aus dem Datenmodell
-          autoForward = migrationInfo.autoForward;
-          autoBackward = migrationInfo.autoBackward;
+          if (type === 'ops') {
+            // OPS-Format
+            migrationTarget = migrationInfo.code;
+            
+            // OPS-spezifische Felder
+            sourceRequiresAdditionalCode = migrationInfo.sourceRequiresAdditionalCode;
+            targetRequiresAdditionalCode = migrationInfo.targetRequiresAdditionalCode;
+            forwardAutomaticMapping = migrationInfo.forwardAutomaticMapping;
+            backwardAutomaticMapping = migrationInfo.backwardAutomaticMapping;
+          } else {
+            // ICD-Format
+            migrationTarget = migrationInfo.code;
+            autoForward = migrationInfo.autoForward;
+            autoBackward = migrationInfo.autoBackward;
+          }
         } else {
           // Älteres Format, wo migrationInfo direkt der Zielcode ist
           migrationTarget = migrationInfo;
-          // Keine Überleitbarkeitsinformationen vorhanden
-          autoForward = undefined;
-          autoBackward = undefined;
         }
       } else {
         subStatus = 'deprecated';
@@ -258,6 +283,10 @@ export function diffCatalogs({ oldCatalog, newCatalog, type, migrationData = nul
       migrationSource,
       autoForward,
       autoBackward,
+      sourceRequiresAdditionalCode,
+      targetRequiresAdditionalCode,
+      forwardAutomaticMapping,
+      backwardAutomaticMapping,
       oldYear,
       newYear
     };

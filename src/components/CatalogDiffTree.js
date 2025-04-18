@@ -459,6 +459,49 @@ export default function CatalogDiffTree({ diffTree }) {
       }
     };
     
+    // Check if an item needs an additional code marker
+    const needsAdditionalCode = (codeData) => {
+      if (!codeData) return false;
+      
+      // Für OPS: Prüfe auf die Information aus dem Umsteiger-Format
+      if (catalogType === 'ops') {
+        // Zusatzkennzeichen aus dem Umsteiger
+        if (codeData.requiresAdditionalCode === 'J') return true;
+        
+        // Alternativ: Prüfe auch das Feld 'isAdditionalCode' aus den Codedaten
+        return codeData.isAdditionalCode === true;
+      }
+      
+      return false;
+    };
+    
+    // Helper to get tooltip info for code
+    const getCodeTooltip = (code, isTarget = false) => {
+      const description = getCodeDescriptionByCode(code);
+      const status = getCodeStatusLabel(code);
+      
+      let tooltip = `${description} (${status})`;
+      
+      // Für OPS: Zusätzliche Informationen anzeigen
+      if (catalogType === 'ops') {
+        // Finde Informationen zu Zusatzkennzeichen, falls vorhanden
+        const targetItem = diffTree.find(item => item.code && item.code.toLowerCase() === code.toLowerCase());
+        
+        // Prüfe auf Zusatzkennzeichen-Informationen
+        if (targetItem) {
+          const needsAdditional = isTarget 
+            ? item.targetRequiresAdditionalCode === 'J'
+            : (item.sourceRequiresAdditionalCode === 'J' || needsAdditionalCode(targetItem.oldCode || targetItem.newCode));
+          
+          if (needsAdditional) {
+            tooltip += "\nErfordert Zusatzkennzeichen";
+          }
+        }
+      }
+      
+      return tooltip;
+    };
+    
     return (
       <Box sx={{ pl: 4, pt: 1, mb: 2 }}>
         {item.migrationTarget && (
@@ -478,16 +521,38 @@ export default function CatalogDiffTree({ diffTree }) {
                       cursor: 'help'
                     } 
                   }}
-                  title={`${getCodeDescriptionByCode(item.migrationTarget)} (${getCodeStatusLabel(item.migrationTarget)})`}
+                  title={getCodeTooltip(item.migrationTarget, true)}
                 />
                 
-                {/* Überleitbarkeits-Badge für vorwärts (von alt nach neu) */}
-                {typeof item.autoForward !== 'undefined' && (
+                {/* Zusatzkennzeichen-Badge für OPS */}
+                {catalogType === 'ops' && item.targetRequiresAdditionalCode === 'J' && (
                   <Chip 
-                    label={item.autoForward ? "Automatisch überleitbar" : "Manuell überleiten"} 
+                    label="Zusatzkennzeichen erforderlich" 
                     size="small" 
-                    color={item.autoForward ? "success" : "warning"}
+                    color="info"
                     sx={{ ml: 1, fontSize: '0.7rem' }}
+                  />
+                )}
+                
+                {/* Überleitbarkeits-Badge für vorwärts (von alt nach neu) */}
+                {(typeof item.autoForward !== 'undefined' || catalogType === 'ops') && (
+                  <Chip 
+                    label={
+                      catalogType === 'ops'
+                        ? (item.forwardAutomaticMapping === 'A' ? "Automatisch überleitbar" : "Manuell überleiten")
+                        : (item.autoForward ? "Automatisch überleitbar" : "Manuell überleiten")
+                    } 
+                    size="small" 
+                    color="default"
+                    sx={{ 
+                      ml: 1, 
+                      fontSize: '0.7rem',
+                      bgcolor: (catalogType === 'ops' && item.forwardAutomaticMapping === 'A') || 
+                        (catalogType !== 'ops' && item.autoForward) 
+                          ? '#7D9692' 
+                          : '#C1666B',
+                      color: 'white'
+                    }}
                   />
                 )}
               </Typography>
@@ -516,17 +581,39 @@ export default function CatalogDiffTree({ diffTree }) {
                           cursor: 'help'
                         } 
                       }}
-                      title={`${getCodeDescriptionByCode(source)} (${getCodeStatusLabel(source)})`}
+                      title={getCodeTooltip(source, false)}
                     />
                   ))}
                   
-                  {/* Überleitbarkeits-Badge für rückwärts (von neu nach alt) */}
-                  {typeof item.autoBackward !== 'undefined' && (
+                  {/* Zusatzkennzeichen-Badge für OPS */}
+                  {catalogType === 'ops' && item.sourceRequiresAdditionalCode === 'J' && (
                     <Chip 
-                      label={item.autoBackward ? "Automatisch rücküberleitbar" : "Manuell rücküberleiten"} 
+                      label="Zusatzkennzeichen erforderlich" 
                       size="small" 
-                      color={item.autoBackward ? "success" : "warning"}
+                      color="info"
                       sx={{ ml: 1, fontSize: '0.7rem' }}
+                    />
+                  )}
+                  
+                  {/* Überleitbarkeits-Badge für rückwärts (von neu nach alt) */}
+                  {(typeof item.autoBackward !== 'undefined' || catalogType === 'ops') && (
+                    <Chip 
+                      label={
+                        catalogType === 'ops'
+                          ? (item.backwardAutomaticMapping === 'A' ? "Automatisch rücküberleitbar" : "Manuell rücküberleiten")
+                          : (item.autoBackward ? "Automatisch rücküberleitbar" : "Manuell rücküberleiten")
+                      } 
+                      size="small" 
+                      color="default"
+                      sx={{ 
+                        ml: 1, 
+                        fontSize: '0.7rem',
+                        bgcolor: (catalogType === 'ops' && item.backwardAutomaticMapping === 'A') || 
+                          (catalogType !== 'ops' && item.autoBackward) 
+                            ? '#7D9692' 
+                            : '#C1666B',
+                        color: 'white'
+                      }}
                     />
                   )}
                 </Box>
@@ -753,9 +840,8 @@ export default function CatalogDiffTree({ diffTree }) {
             <Box sx={{ display: 'flex', alignItems: 'center' }}>
               <Chip 
                 label="Automatisch überleitbar" 
-                size="small" 
-                color="success" 
-                sx={{ mr: 1 }}
+                size="small"
+                sx={{ mr: 1, bgcolor: '#7D9692', color: 'white' }}
               />
               <Typography variant="body2">
                 Code kann systemseitig automatisch umgesetzt werden
@@ -765,8 +851,7 @@ export default function CatalogDiffTree({ diffTree }) {
               <Chip 
                 label="Manuell überleiten" 
                 size="small" 
-                color="warning" 
-                sx={{ mr: 1 }}
+                sx={{ mr: 1, bgcolor: '#C1666B', color: 'white' }}
               />
               <Typography variant="body2">
                 Manuelle fachliche Prüfung erforderlich

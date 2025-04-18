@@ -729,7 +729,14 @@ export const searchOPSCodes = async (input, year, showChildCodes = false) => {
 
 /**
  * Lädt die OPS-Umsteiger-Daten für den Vergleich zwischen zwei Jahren
- * Format: alter_kode;flag;neuer_kode;flag;flag1;flag2
+ * Spezifikation:
+ * Feld 1 - Schlüsselnummer alte Version
+ * Feld 2 - Schlüsselnummer der alten Version erfordert ein Zusatzkennzeichen (J/N)
+ * Feld 3 - Schlüsselnummer neue Version
+ * Feld 4 - Schlüsselnummer der neuen Version erfordert ein Zusatzkennzeichen (J/N)
+ * Feld 5 - Überleitbarkeit von alter Version auf neue Version (A/leer)
+ * Feld 6 - Überleitbarkeit von neuer Version auf alte Version (A/leer)
+ * 
  * @param {string} oldYear - Das alte Jahr (Ausgangsversion)
  * @param {string} newYear - Das neue Jahr (Zielversion)
  * @returns {Promise<Object>} - Ein Objekt mit den Umsteiger-Mappings
@@ -761,30 +768,59 @@ export async function loadOPSMigrationData(oldYear, newYear) {
     const lines = text.split('\n').filter(line => line.trim().length > 0);
     console.log(`Anzahl Zeilen in der Umsteiger-Datei: ${lines.length}`);
     
+    // Debug: ersten 5 Zeilen prüfen
+    lines.slice(0, 5).forEach((line, idx) => {
+      console.log(`[OPS-Umsteiger] Zeile ${idx + 1}:`, line);
+    });
+    
     // Initialisiere Mappings in beide Richtungen
     const fromOld = {}; // altes -> neues Mapping
-    const toNew = {};   // neues -> altes Mapping
+    const toNew = {};
     
     // Verarbeite jede Zeile
     lines.forEach(line => {
-      const parts = line.split(';');
+      const parts = line.split(';').map(part => part.trim());
+      
+      // Stelle sicher, dass wir mindestens 4 Teile haben (der Rest ist optional)
       if (parts.length >= 4) {
-        const oldCode = parts[0].trim();
-        const newCode = parts[2].trim();
+        const oldCode = parts[0]; // Feld 1
+        const oldRequiresAdditionalCode = parts[1]; // Feld 2 - J/N
+        const newCode = parts[2]; // Feld 3
+        const newRequiresAdditionalCode = parts[3]; // Feld 4 - J/N
+        
+        // Optionale Felder mit Default-Werten
+        const forwardAutomaticMapping = parts.length >= 5 ? parts[4] : ''; // Feld 5 - A/leer
+        const backwardAutomaticMapping = parts.length >= 6 ? parts[5] : ''; // Feld 6 - A/leer
         
         // Ignoriere Einträge, bei denen alter und neuer Code identisch sind
         if (oldCode !== newCode) {
-          fromOld[oldCode] = newCode;
+          // Für das Mapping vom alten zum neuen Code
+          fromOld[oldCode] = {
+            code: newCode,
+            sourceRequiresAdditionalCode: oldRequiresAdditionalCode,
+            targetRequiresAdditionalCode: newRequiresAdditionalCode,
+            forwardAutomaticMapping,
+            backwardAutomaticMapping
+          };
           
           // Für den umgekehrten Fall müssen wir aufpassen, da mehrere alte Codes
           // auf denselben neuen Code umsteigen können
           if (!toNew[newCode]) {
             toNew[newCode] = [];
           }
-          toNew[newCode].push(oldCode);
+          
+          toNew[newCode].push({
+            code: oldCode,
+            sourceRequiresAdditionalCode: oldRequiresAdditionalCode,
+            targetRequiresAdditionalCode: newRequiresAdditionalCode,
+            forwardAutomaticMapping,
+            backwardAutomaticMapping
+          });
         }
       }
     });
+    
+    console.log(`OPS-Umsteiger-Daten geladen: ${Object.keys(fromOld).length} Einträge`);
     
     return { 
       fromOld, 
