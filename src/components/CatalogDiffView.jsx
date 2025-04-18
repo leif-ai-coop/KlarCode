@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Box, Button, FormControl, InputLabel, MenuItem, Select, Typography, CircularProgress, Alert } from '@mui/material';
-import { loadICDData, loadOPSData, getAvailableYears, loadOPSMigrationData } from '../services/dataService';
+import { loadICDData, loadOPSData, getAvailableYears, loadOPSMigrationData, loadICDMigrationData } from '../services/dataService';
 import { diffCatalogs } from '../utils/catalogDiff';
 // Platzhalter für die Baum-Komponente
 // (später implementieren)
@@ -34,6 +34,8 @@ export default function CatalogDiffView() {
       if (catalogType === 'icd') {
         oldData = await loadICDData(yearOld);
         newData = await loadICDData(yearNew);
+        migrationData = await loadICDMigrationData(yearOld, yearNew);
+        console.log('ICD-Umsteiger geladen:', migrationData);
       } else {
         oldData = await loadOPSData(yearOld);
         newData = await loadOPSData(yearNew);

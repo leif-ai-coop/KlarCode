@@ -29,6 +29,8 @@ import {
   normalizeOPSCode
 } from '../utils/search';
 
+import { normalizeCodeKey } from '../utils/catalogDiff';
+
 // Cache für geladene Daten
 const dataCache = {
   icd: {},
@@ -746,7 +748,18 @@ export async function loadOPSMigrationData(oldYear, newYear) {
     }
     
     const text = await response.text();
+    
+    // Prüfe, ob die Datei tatsächlich Inhalt hat
+    console.log(`Umsteiger-Datei Inhalt (erste 500 Zeichen): "${text.substring(0, 500)}..."`);
+    
+    // Prüfe, ob die Datei HTML ist (was auf einen Fehler hindeuten würde)
+    if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
+      console.warn('Geladene Datei scheint HTML zu sein, keine Umsteiger-Datei!');
+      return { fromOld: {}, toNew: {}, hasMigrationData: false };
+    }
+    
     const lines = text.split('\n').filter(line => line.trim().length > 0);
+    console.log(`Anzahl Zeilen in der Umsteiger-Datei: ${lines.length}`);
     
     // Initialisiere Mappings in beide Richtungen
     const fromOld = {}; // altes -> neues Mapping
@@ -780,6 +793,297 @@ export async function loadOPSMigrationData(oldYear, newYear) {
     };
   } catch (error) {
     console.error("Fehler beim Laden der OPS-Umsteiger-Daten:", error);
+    return { fromOld: {}, toNew: {}, hasMigrationData: false };
+  }
+}
+
+/**
+ * Lädt die ICD-Umsteiger-Daten für den Vergleich zwischen zwei Jahren
+ * Format: alter_kode;flag;neuer_kode;flag;flag1;flag2
+ * @param {string} oldYear - Das alte Jahr (Ausgangsversion)
+ * @param {string} newYear - Das neue Jahr (Zielversion)
+ * @returns {Promise<Object>} - Ein Objekt mit den Umsteiger-Mappings
+ */
+export async function loadICDMigrationData(oldYear, newYear) {
+  try {
+    console.log(`STARTE loadICDMigrationData für oldYear=${oldYear}, newYear=${newYear}`);
+    
+    // TEMPORÄRE FIX: Direkte Zuweisung für 2023, um zu testen, ob es mit dem exakten Namen funktioniert
+    if (newYear === '2023') {
+      const baseDir = `/data/${newYear}/icd10/`;
+      const exactFileName = `icd10gm${newYear}syst_umsteiger_${oldYear}_${newYear}_20221206.txt`;
+      const exactFilePath = baseDir + exactFileName;
+      
+      console.log(`Versuche DIREKT die exakte Datei zu laden: ${exactFilePath}`);
+      const response = await fetch(exactFilePath);
+      console.log(`Exakter Name: Status=${response.status}, OK=${response.ok}`);
+      
+      if (response.ok) {
+        const text = await response.text();
+        console.log(`Datei erfolgreich geladen! Erste 100 Zeichen: ${text.substring(0, 100)}...`);
+        
+        // ... Rest des Codes zur Verarbeitung ...
+        const lines = text.split('\n').filter(line => line.trim().length > 0);
+        console.log(`Anzahl Zeilen in der Umsteiger-Datei: ${lines.length}`);
+        
+        // Debug: Zeige die ersten 10 Zeilen und deren Parts
+        lines.slice(0, 10).forEach((line, idx) => {
+          const parts = line.split(';').map(p => p.trim());
+          console.log(`[ICD-Umsteiger] Zeile ${idx + 1}:`, line, '->', parts);
+        });
+
+        const fromOld = {};
+        const toNew = {};
+        let skipped = 0;
+
+        lines.forEach(line => {
+          const parts = line.split(';').map(p => p.trim());
+          const oldCode = parts[0] || '';
+          const newCode = parts[1] || '';
+          // Normalisiere die Keys wie im Diff
+          const normOld = normalizeCodeKey({ kode: oldCode }, 'icd');
+          const normNew = newCode ? normalizeCodeKey({ kode: newCode }, 'icd') : '';
+          if (normOld) {
+            if (normNew && normOld !== normNew) {
+              fromOld[normOld] = normNew;
+              if (!toNew[normNew]) {
+                toNew[normNew] = [];
+              }
+              toNew[normNew].push(normOld);
+            } else if (!normNew) {
+              fromOld[normOld] = null;
+            }
+          } else {
+            skipped++;
+          }
+        });
+
+        console.log(`ICD-Umsteiger-Daten geladen: ${Object.keys(fromOld).length} Einträge, übersprungene Zeilen: ${skipped}`);
+        return {
+          fromOld,
+          toNew,
+          hasMigrationData: Object.keys(fromOld).length > 0
+        };
+      }
+    } else if (newYear === '2024') {
+      const baseDir = `/data/${newYear}/icd10/`;
+      const exactFileName = `icd10gm${newYear}syst_umsteiger_${oldYear}_20221206_${newYear}.txt`;
+      const exactFilePath = baseDir + exactFileName;
+      
+      console.log(`Versuche DIREKT die exakte 2024-Datei zu laden: ${exactFilePath}`);
+      const response = await fetch(exactFilePath);
+      console.log(`Exakter Name 2024: Status=${response.status}, OK=${response.ok}`);
+      
+      if (response.ok) {
+        const text = await response.text();
+        console.log(`2024-Datei erfolgreich geladen! Erste 100 Zeichen: ${text.substring(0, 100)}...`);
+        
+        // ... Rest des Codes zur Verarbeitung (wie bei 2023) ...
+        const lines = text.split('\n').filter(line => line.trim().length > 0);
+        console.log(`Anzahl Zeilen in der Umsteiger-Datei: ${lines.length}`);
+        
+        // Debug: Zeige die ersten 10 Zeilen und deren Parts
+        lines.slice(0, 10).forEach((line, idx) => {
+          const parts = line.split(';').map(p => p.trim());
+          console.log(`[ICD-Umsteiger] Zeile ${idx + 1}:`, line, '->', parts);
+        });
+
+        const fromOld = {};
+        const toNew = {};
+        let skipped = 0;
+
+        lines.forEach(line => {
+          const parts = line.split(';').map(p => p.trim());
+          const oldCode = parts[0] || '';
+          const newCode = parts[1] || '';
+          // Normalisiere die Keys wie im Diff
+          const normOld = normalizeCodeKey({ kode: oldCode }, 'icd');
+          const normNew = newCode ? normalizeCodeKey({ kode: newCode }, 'icd') : '';
+          if (normOld) {
+            if (normNew && normOld !== normNew) {
+              fromOld[normOld] = normNew;
+              if (!toNew[normNew]) {
+                toNew[normNew] = [];
+              }
+              toNew[normNew].push(normOld);
+            } else if (!normNew) {
+              fromOld[normOld] = null;
+            }
+          } else {
+            skipped++;
+          }
+        });
+
+        console.log(`ICD-Umsteiger-Daten geladen: ${Object.keys(fromOld).length} Einträge, übersprungene Zeilen: ${skipped}`);
+        return {
+          fromOld,
+          toNew,
+          hasMigrationData: Object.keys(fromOld).length > 0
+        };
+      }
+    }
+    
+    // Wenn der direkte Weg für 2023 nicht funktioniert hat, weiter mit normalem Ablauf
+    // Baue Pfad zur Umsteiger-Datei mit Standardnamen
+    const baseDir = `/data/${newYear}/icd10/`;
+    let fileName = `icd10gm${newYear}syst_umsteiger_${oldYear}_${newYear}.txt`;
+    let filePath = baseDir + fileName;
+
+    // 1. Versuch: Standardname
+    console.log(`Versuche ICD-Umsteiger-Datei zu laden: ${filePath}`);
+    let response = await fetch(filePath);
+    console.log(`Standardname: Status=${response.status}, OK=${response.ok}`);
+    
+    // 2. Versuch: Aus der Frontend-Dateiliste (wenn verfügbar)
+    if (!response.ok) {
+      if (typeof window !== 'undefined' && window.__icdUmsteigerFiles && Array.isArray(window.__icdUmsteigerFiles[`${newYear}`])) {
+        console.log('Verfügbare Umsteiger-Dateien für', newYear, window.__icdUmsteigerFiles[`${newYear}`]);
+        const prefix = `icd10gm${newYear}syst_umsteiger`;
+        const candidates = window.__icdUmsteigerFiles[`${newYear}`].filter(f => 
+          typeof f === 'string' && f.startsWith(prefix) && f.endsWith('.txt') && f.length < 100
+        );
+        
+        if (candidates.length > 0) {
+          fileName = candidates[0];
+          filePath = baseDir + fileName;
+          console.log(`Alternative ICD-Umsteiger-Datei aus Liste verwendet: ${fileName}`);
+          response = await fetch(filePath);
+          console.log(`Aus Liste: Status=${response.status}, OK=${response.ok}`);
+        }
+      }
+    }
+    
+    // 3. Versuch: Suche nach allen Dateien, die mit dem umsteiger-prefix beginnen
+    if (!response.ok) {
+      // Direkte Dateisuche im Verzeichnis: Lade alle möglichen Dateinamen, die passen könnten
+      console.log(`Universelle Suche nach Umsteiger-Dateien für ${newYear}`);
+      
+      try {
+        // Muster für alle möglichen gültigen Umsteiger-Dateinamen
+        const basePrefix = `icd10gm${newYear}syst_umsteiger_`;
+        
+        // Versuche einen Dateilisting-Request, um alle Dateien im Verzeichnis zu erhalten
+        const dirResponse = await fetch(`/data/${newYear}/icd10/`);
+        if (dirResponse.ok) {
+          try {
+            // Bei manchen Servern kann eine Verzeichnisauflistung als JSON vorliegen
+            const dirContent = await dirResponse.json();
+            console.log('Verzeichnisinhalt:', dirContent);
+            // Suche nach passenden Dateien
+            if (Array.isArray(dirContent)) {
+              const candidates = dirContent.filter(item => 
+                typeof item === 'string' && item.startsWith(basePrefix) && item.endsWith('.txt')
+              );
+              if (candidates.length > 0) {
+                fileName = candidates[0];
+                filePath = baseDir + fileName;
+                console.log(`Gefundene Umsteiger-Datei im Verzeichnis: ${fileName}`);
+                response = await fetch(filePath);
+              }
+            }
+          } catch (e) {
+            console.log('Verzeichnisauflistung als JSON nicht möglich:', e);
+          }
+        }
+      } catch (dirError) {
+        console.log('Verzeichnissuche nicht möglich:', dirError);
+      }
+      
+      // Fallback: Probiere bekannte Namensmuster aus
+      if (!response.ok) {
+        // Generische Liste möglicher Dateinamen-Muster für verschiedene Jahre
+        // WICHTIG: Diese Liste kann erweitert werden, wenn neue Muster bekannt werden
+        const possiblePatterns = [
+          // Standard-Pattern
+          `${baseDir}icd10gm${newYear}syst_umsteiger_${oldYear}_${newYear}.txt`,
+          
+          // 2023-Pattern mit Datum am Ende
+          `${baseDir}icd10gm${newYear}syst_umsteiger_${oldYear}_${newYear}_20221206.txt`,
+          
+          // 2024-Pattern mit Datum in der Mitte - BESONDERS WICHTIG
+          `${baseDir}icd10gm${newYear}syst_umsteiger_${oldYear}_20221206_${newYear}.txt`,
+          
+          // Generische Pattern-Variationen
+          `${baseDir}icd10gm${newYear}syst_umsteiger_${oldYear}.txt`,
+          `${baseDir}icd10gm${newYear}syst_umsteiger.txt`
+        ];
+        
+        console.log(`Versuche ${possiblePatterns.length} mögliche Dateinamen-Muster:`, possiblePatterns);
+        
+        // Versuche jedes Muster der Reihe nach
+        for (const pattern of possiblePatterns) {
+          console.log(`Versuche Muster: ${pattern}`);
+          response = await fetch(pattern);
+          console.log(`Muster ${pattern}: Status=${response.status}, OK=${response.ok}`);
+          
+          if (response.ok) {
+            fileName = pattern.replace(baseDir, '');
+            console.log(`Erfolgreiche Umsteiger-Datei gefunden: ${fileName}`);
+            break;
+          }
+        }
+      }
+    }
+    
+    if (!response.ok) {
+      console.warn(`ICD-Umsteiger-Datei nicht gefunden: ${filePath}`);
+      return { fromOld: {}, toNew: {}, hasMigrationData: false };
+    }
+
+    const text = await response.text();
+    
+    // Prüfe, ob die Datei tatsächlich Inhalt hat
+    console.log(`Umsteiger-Datei Inhalt (erste 500 Zeichen): "${text.substring(0, 500)}..."`);
+    
+    // Prüfe, ob die Datei HTML ist (was auf einen Fehler hindeuten würde)
+    if (text.trim().startsWith('<!DOCTYPE') || text.trim().startsWith('<html')) {
+      console.warn('Geladene Datei scheint HTML zu sein, keine Umsteiger-Datei!');
+      return { fromOld: {}, toNew: {}, hasMigrationData: false };
+    }
+    
+    const lines = text.split('\n').filter(line => line.trim().length > 0);
+    console.log(`Anzahl Zeilen in der Umsteiger-Datei: ${lines.length}`);
+
+    // Debug: Zeige die ersten 10 Zeilen und deren Parts
+    lines.slice(0, 10).forEach((line, idx) => {
+      const parts = line.split(';').map(p => p.trim());
+      console.log(`[ICD-Umsteiger] Zeile ${idx + 1}:`, line, '->', parts);
+    });
+
+    const fromOld = {};
+    const toNew = {};
+    let skipped = 0;
+
+    lines.forEach(line => {
+      const parts = line.split(';').map(p => p.trim());
+      const oldCode = parts[0] || '';
+      const newCode = parts[1] || '';
+      // Normalisiere die Keys wie im Diff
+      const normOld = normalizeCodeKey({ kode: oldCode }, 'icd');
+      const normNew = newCode ? normalizeCodeKey({ kode: newCode }, 'icd') : '';
+      if (normOld) {
+        if (normNew && normOld !== normNew) {
+          fromOld[normOld] = normNew;
+          if (!toNew[normNew]) {
+            toNew[normNew] = [];
+          }
+          toNew[normNew].push(normOld);
+        } else if (!normNew) {
+          fromOld[normOld] = null;
+        }
+      } else {
+        skipped++;
+      }
+    });
+
+    console.log(`ICD-Umsteiger-Daten geladen: ${Object.keys(fromOld).length} Einträge, übersprungene Zeilen: ${skipped}`);
+    return {
+      fromOld,
+      toNew,
+      hasMigrationData: Object.keys(fromOld).length > 0
+    };
+  } catch (error) {
+    console.error("Fehler beim Laden der ICD-Umsteiger-Daten:", error);
     return { fromOld: {}, toNew: {}, hasMigrationData: false };
   }
 } 

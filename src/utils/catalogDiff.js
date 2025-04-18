@@ -335,4 +335,6 @@ function diffCodeFields(oldCode, newCode) {
     }
   }
   return diffs;
-} 
+}
+
+export { normalizeCodeKey }; 
