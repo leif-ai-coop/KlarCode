@@ -331,6 +331,34 @@ export default function CatalogDiffTree({ diffTree }) {
   const renderDiffDetails = (item) => {
     if (item.status !== 'changed' || !item.diffDetails || !areConsecutiveYears) return null;
     
+    // Mapping für nutzerfreundliche Feldbezeichnungen
+    const fieldLabels = {
+      // ICD-spezifische Felder
+      usage295: 'Verwendung §295',
+      usage301: 'Verwendung §301',
+      genderRestriction: 'Geschlechtsbezug',
+      minAge: 'Untere Altersgrenze',
+      maxAge: 'Obere Altersgrenze',
+      ageError: 'Fehlerart bei Altersbezug',
+      ifsgReporting: 'IfSG-Meldung',
+      ifsgLab: 'IfSG-Labor',
+      
+      // OPS-spezifische Felder
+      terminalCode: 'Terminale Schlüsselnummer',
+      sideRequired: 'Seitenangabe erforderlich',
+      validityKHG: 'Gültigkeit § 17 KHG',
+      isAdditionalCode: 'Zusatzkode',
+      isOneTimeCode: 'Einmalkode',
+      
+      // Allgemeine strukturelle Felder
+      gruppe: 'Gruppe',
+      kapitel: 'Kapitel',
+      dreisteller: 'Dreisteller',
+      beschreibung: 'Beschreibung',
+      kode: 'Kode',
+      code: 'Kode'
+    };
+    
     return (
       <Box sx={{ pl: 4, pt: 1 }}>
         <Typography variant="subtitle2" gutterBottom>Feldänderungen:</Typography>
@@ -338,7 +366,7 @@ export default function CatalogDiffTree({ diffTree }) {
           {Object.entries(item.diffDetails).map(([field, values]) => (
             <ListItem key={field}>
               <ListItemText
-                primary={field}
+                primary={fieldLabels[field] || field}
                 secondary={
                   <React.Fragment>
                     <Typography component="span" variant="body2" color="error.main" sx={{ display: 'block' }}>
