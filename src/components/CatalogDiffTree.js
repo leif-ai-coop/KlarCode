@@ -804,7 +804,7 @@ export default function CatalogDiffTree({ diffTree }) {
   const renderStats = () => (
     <Box sx={{ mb: 3 }}>
       <Typography variant="h6" gutterBottom>
-        Diff-Statistik
+        Delta-Statistik
       </Typography>
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
         <Box sx={{ minWidth: 150 }}>
@@ -838,7 +838,7 @@ export default function CatalogDiffTree({ diffTree }) {
     <Paper sx={{ p: 2 }}>
       <Box sx={{ mb: 2 }}>
         <Typography variant="h6" gutterBottom>
-          {catalogType.toUpperCase()} Diff-Ergebnisse
+          {catalogType.toUpperCase()} Delta-Ergebnisse
         </Typography>
         <Typography variant="body2" color="text.secondary">
           Insgesamt {stats.total} Codes verglichen, davon {stats.totalChanges} mit Unterschieden
