@@ -7,9 +7,12 @@
  * @param {Object} params.oldCatalog - Katalogdaten des alten Jahres (aus dataService)
  * @param {Object} params.newCatalog - Katalogdaten des neuen Jahres (aus dataService)
  * @param {string} params.type - 'icd' oder 'ops'
+ * @param {Object} [params.migrationData] - Optional: Umsteiger-Daten für OPS
+ * @param {string} [params.oldYear] - Jahr des alten Katalogs
+ * @param {string} [params.newYear] - Jahr des neuen Katalogs
  * @returns {Object[]} Baumstruktur mit Diffs (Kapitel → Gruppen → Einzelcodes)
  */
-export function diffCatalogs({ oldCatalog, newCatalog, type }) {
+export function diffCatalogs({ oldCatalog, newCatalog, type, migrationData = null, oldYear, newYear }) {
   console.log('diffCatalogs Start - type:', type);
   
   // Gemeinsame Variablen für beide Katalogtypen
@@ -99,6 +102,12 @@ export function diffCatalogs({ oldCatalog, newCatalog, type }) {
     return [];
   }
   
+  // Überprüfe, ob Umsteiger-Daten vorhanden sind
+  const hasMigrationData = migrationData && migrationData.hasMigrationData;
+  if (hasMigrationData) {
+    console.log(`Umsteiger-Daten geladen: ${Object.keys(migrationData.fromOld).length} Einträge`);
+  }
+  
   // Sammle alle einzigartigen Code-Keys aus beiden Jahren
   // Für OPS müssen wir besonders vorsichtig mit der Normalisierung sein
   const normalizeFunc = (code) => normalizeCodeKey(code, type);
@@ -158,14 +167,40 @@ export function diffCatalogs({ oldCatalog, newCatalog, type }) {
   // Überprüfe die Maps
   console.log(`Map-Größen: Alt=${Object.keys(oldCodeMap).length}, Neu=${Object.keys(newCodeMap).length}`);
 
-  // Diff auf Code-Ebene
+  // Diff auf Code-Ebene (mit Berücksichtigung der Umsteiger)
   const codeDiffs = allCodeKeys.map(codeKey => {
     const oldCode = oldCodeMap[codeKey];
     const newCode = newCodeMap[codeKey];
     let codeStatus = 'unchanged';
+    let subStatus = null;
     let diffDetails = null;
-    if (!oldCode) codeStatus = 'added';
-    else if (!newCode) codeStatus = 'removed';
+    let migrationTarget = null;
+    let migrationSource = null;
+    
+    if (!oldCode) {
+      codeStatus = 'added';
+      
+      // Prüfe, ob dieser neu hinzugefügte Code ein Ersatz für einen alten Code ist
+      if (hasMigrationData && migrationData.toNew[codeKey]) {
+        subStatus = 'replacement';
+        migrationSource = Array.isArray(migrationData.toNew[codeKey]) 
+          ? migrationData.toNew[codeKey] 
+          : [migrationData.toNew[codeKey]];
+      } else {
+        subStatus = 'new';
+      }
+    } 
+    else if (!newCode) {
+      codeStatus = 'removed';
+      
+      // Prüfe, ob für diesen entfernten Code ein Umstieg existiert
+      if (hasMigrationData && migrationData.fromOld[codeKey]) {
+        subStatus = 'redirected';
+        migrationTarget = migrationData.fromOld[codeKey];
+      } else {
+        subStatus = 'deprecated';
+      }
+    }
     else {
       // Feldgenauer Vergleich
       const diff = diffCodeFields(oldCode, newCode);
@@ -174,20 +209,34 @@ export function diffCatalogs({ oldCatalog, newCatalog, type }) {
         diffDetails = diff;
       }
     }
+    
     return {
       code: codeKey,
+      type,
       status: codeStatus,
-      old: oldCode,
-      new: newCode,
-      diff: diffDetails,
-      type: type // Typ für die View-Komponente mitgeben
+      subStatus,
+      oldCode,
+      newCode,
+      diffDetails,
+      migrationTarget,
+      migrationSource,
+      oldYear,
+      newYear
     };
   });
 
   // Zähle die verschiedenen Diff-Typen
   const counts = {
-    added: codeDiffs.filter(d => d.status === 'added').length,
-    removed: codeDiffs.filter(d => d.status === 'removed').length,
+    added: {
+      total: codeDiffs.filter(d => d.status === 'added').length,
+      new: codeDiffs.filter(d => d.status === 'added' && d.subStatus === 'new').length,
+      replacement: codeDiffs.filter(d => d.status === 'added' && d.subStatus === 'replacement').length
+    },
+    removed: {
+      total: codeDiffs.filter(d => d.status === 'removed').length,
+      deprecated: codeDiffs.filter(d => d.status === 'removed' && d.subStatus === 'deprecated').length,
+      redirected: codeDiffs.filter(d => d.status === 'removed' && d.subStatus === 'redirected').length
+    },
     changed: codeDiffs.filter(d => d.status === 'changed').length,
     unchanged: codeDiffs.filter(d => d.status === 'unchanged').length,
   };
@@ -195,8 +244,14 @@ export function diffCatalogs({ oldCatalog, newCatalog, type }) {
   
   // Beispiele für die verschiedenen Status-Typen anzeigen
   const examples = {
-    added: codeDiffs.filter(d => d.status === 'added').slice(0, 3),
-    removed: codeDiffs.filter(d => d.status === 'removed').slice(0, 3),
+    added: {
+      new: codeDiffs.filter(d => d.status === 'added' && d.subStatus === 'new').slice(0, 3),
+      replacement: codeDiffs.filter(d => d.status === 'added' && d.subStatus === 'replacement').slice(0, 3)
+    },
+    removed: {
+      deprecated: codeDiffs.filter(d => d.status === 'removed' && d.subStatus === 'deprecated').slice(0, 3),
+      redirected: codeDiffs.filter(d => d.status === 'removed' && d.subStatus === 'redirected').slice(0, 3)
+    },
     changed: codeDiffs.filter(d => d.status === 'changed').slice(0, 3)
   };
   console.log('Beispiele für Änderungen:', examples);

@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Box, Typography, Paper, Accordion, AccordionSummary, AccordionDetails, Chip, List, ListItem, ListItemText, Badge } from '@mui/material';
+import { Box, Typography, Paper, Accordion, AccordionSummary, AccordionDetails, Chip, List, ListItem, ListItemText, Badge, Button } from '@mui/material';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
@@ -7,10 +7,32 @@ import ChangeCircleIcon from '@mui/icons-material/ChangeCircle';
 import FolderIcon from '@mui/icons-material/Folder';
 import FolderOpenIcon from '@mui/icons-material/FolderOpen';
 import ArticleIcon from '@mui/icons-material/Article';
+import CompareArrowsIcon from '@mui/icons-material/CompareArrows';
+import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+
+// Status-Label-Map für menschenlesbare Beschreibungen
+const STATUS_LABELS = {
+  added: 'Hinzugefügt',
+  removed: 'Entfernt',
+  changed: 'Geändert',
+  unchanged: 'Unverändert',
+  
+  // Sub-Status für hinzugefügte Codes
+  new: 'Neu',
+  replacement: 'Ersetzt',
+  
+  // Sub-Status für entfernte Codes
+  deprecated: 'Ersatzlos entfernt',
+  redirected: 'Umkodiert'
+};
 
 export default function CatalogDiffTree({ diffTree }) {
   // Expandierte Nodes verwalten
   const [expandedNodes, setExpandedNodes] = useState({});
+  
+  // Falls ein Code angeklickt wird, um zu seinem Migrations-Ziel zu springen
+  const [selectedCode, setSelectedCode] = useState(null);
   
   // Katalog-Typ aus dem ersten Diff-Element bestimmen
   const catalogType = useMemo(() => {
@@ -18,16 +40,68 @@ export default function CatalogDiffTree({ diffTree }) {
     return diffTree[0]?.type || 'icd';
   }, [diffTree]);
 
+  // Überprüfen, ob es aufeinanderfolgende Jahre sind (für Umsteiger)
+  const areConsecutiveYears = useMemo(() => {
+    if (!diffTree || diffTree.length === 0) return false;
+    
+    // Wir schauen auf das erste Element und extrahieren die Jahre aus den oldYear/newYear
+    const firstItem = diffTree[0];
+    if (!firstItem || !firstItem.oldYear || !firstItem.newYear) return false;
+    
+    const oldYear = parseInt(firstItem.oldYear);
+    const newYear = parseInt(firstItem.newYear);
+    
+    return !isNaN(oldYear) && !isNaN(newYear) && newYear - oldYear === 1;
+  }, [diffTree]);
+
   // Filtere nur die Einträge mit Status != 'unchanged'
   const diffsOnly = useMemo(() => diffTree.filter(item => item.status !== 'unchanged'), [diffTree]);
   
   // Zähle die verschiedenen Diff-Typen für die Statistik
-  const stats = useMemo(() => ({
-    added: diffTree.filter(d => d.status === 'added').length,
-    removed: diffTree.filter(d => d.status === 'removed').length,
-    changed: diffTree.filter(d => d.status === 'changed').length,
-    total: diffTree.length
-  }), [diffTree]);
+  const stats = useMemo(() => {
+    const result = {
+      added: {
+        total: diffTree.filter(d => d.status === 'added').length,
+        new: diffTree.filter(d => d.status === 'added' && d.subStatus === 'new').length,
+        replacement: diffTree.filter(d => d.status === 'added' && d.subStatus === 'replacement').length
+      },
+      removed: {
+        total: diffTree.filter(d => d.status === 'removed').length,
+        deprecated: diffTree.filter(d => d.status === 'removed' && d.subStatus === 'deprecated').length,
+        redirected: diffTree.filter(d => d.status === 'removed' && d.subStatus === 'redirected').length
+      },
+      changed: diffTree.filter(d => d.status === 'changed').length,
+      total: diffTree.length
+    };
+    return result;
+  }, [diffTree]);
+
+  // Hilfsfunktion: Finde ein Code-Element anhand seines Codes
+  const findCodeElement = (code) => {
+    const found = diffTree.find(item => item.code === code);
+    return found ? found.code : null;
+  };
+  
+  // Springe zu einem Code in der Ansicht (z.B. bei Umsteiger-Codes)
+  const jumpToCode = (code) => {
+    const targetCode = findCodeElement(code);
+    if (targetCode) {
+      setSelectedCode(targetCode);
+      
+      // Expandiere alle notwendigen Nodes (hierarchisch durch Kapitel/Gruppen)
+      // In diesem Fall nur den Code selbst
+      setExpandedNodes(prev => ({
+        ...prev,
+        [`code-${targetCode}`]: true
+      }));
+      
+      // Scrolle zur Position
+      const element = document.getElementById(`code-${targetCode}`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  };
 
   // Generiere Baumstruktur basierend auf Katalogtyp
   const treeData = useMemo(() => {
@@ -119,7 +193,12 @@ export default function CatalogDiffTree({ diffTree }) {
           id: `kapitel-${kapitel}`,
           title: getKapitelTitle(kapitel),
           children: {},
-          stats: { added: 0, removed: 0, changed: 0, total: 0 }
+          stats: { 
+            added: { total: 0, new: 0, replacement: 0 },
+            removed: { total: 0, deprecated: 0, redirected: 0 },
+            changed: 0, 
+            total: 0 
+          }
         };
       }
       
@@ -129,7 +208,12 @@ export default function CatalogDiffTree({ diffTree }) {
           id: `group-${group}`,
           title: `Gruppe ${group}`,
           children: [],
-          stats: { added: 0, removed: 0, changed: 0, total: 0 }
+          stats: { 
+            added: { total: 0, new: 0, replacement: 0 },
+            removed: { total: 0, deprecated: 0, redirected: 0 },
+            changed: 0, 
+            total: 0 
+          }
         };
         
         // Gruppe zum Kapitel hinzufügen
@@ -140,9 +224,36 @@ export default function CatalogDiffTree({ diffTree }) {
       groupMap[group].children.push(item);
       
       // Statistiken aktualisieren
-      groupMap[group].stats[item.status]++;
+      if (item.status === 'added') {
+        groupMap[group].stats.added.total++;
+        kapitelMap[kapitel].stats.added.total++;
+        
+        if (item.subStatus === 'new') {
+          groupMap[group].stats.added.new++;
+          kapitelMap[kapitel].stats.added.new++;
+        } else if (item.subStatus === 'replacement') {
+          groupMap[group].stats.added.replacement++;
+          kapitelMap[kapitel].stats.added.replacement++;
+        }
+      }
+      else if (item.status === 'removed') {
+        groupMap[group].stats.removed.total++;
+        kapitelMap[kapitel].stats.removed.total++;
+        
+        if (item.subStatus === 'deprecated') {
+          groupMap[group].stats.removed.deprecated++;
+          kapitelMap[kapitel].stats.removed.deprecated++;
+        } else if (item.subStatus === 'redirected') {
+          groupMap[group].stats.removed.redirected++;
+          kapitelMap[kapitel].stats.removed.redirected++;
+        }
+      }
+      else if (item.status === 'changed') {
+        groupMap[group].stats.changed++;
+        kapitelMap[kapitel].stats.changed++;
+      }
+      
       groupMap[group].stats.total++;
-      kapitelMap[kapitel].stats[item.status]++;
       kapitelMap[kapitel].stats.total++;
     });
 
@@ -157,7 +268,7 @@ export default function CatalogDiffTree({ diffTree }) {
       // Für ICD: Alphabetische Sortierung (A, B, C, ...)
       return a.title.localeCompare(b.title);
     });
-  }, [diffsOnly, catalogType]);
+  }, [diffsOnly, catalogType, selectedCode]);
 
   // Node expandieren/kollabieren
   const toggleNode = (nodeId) => {
@@ -167,56 +278,64 @@ export default function CatalogDiffTree({ diffTree }) {
     }));
   };
 
-  // Status-Zusammenfassung als Badges darstellen
-  const renderStatusBadges = (stats) => (
-    <Box sx={{ display: 'flex', gap: 1, ml: 2 }}>
-      {stats.added > 0 && (
-        <Badge badgeContent={stats.added} color="success" max={999} sx={{ '& .MuiBadge-badge': { fontSize: '0.7rem' } }}>
-          <Chip size="small" label="Hinzugefügt" color="success" variant="outlined" />
-        </Badge>
-      )}
-      {stats.removed > 0 && (
-        <Badge badgeContent={stats.removed} color="error" max={999} sx={{ '& .MuiBadge-badge': { fontSize: '0.7rem' } }}>
-          <Chip size="small" label="Entfernt" color="error" variant="outlined" />
-        </Badge>
-      )}
-      {stats.changed > 0 && (
-        <Badge badgeContent={stats.changed} color="warning" max={999} sx={{ '& .MuiBadge-badge': { fontSize: '0.7rem' } }}>
-          <Chip size="small" label="Geändert" color="warning" variant="outlined" />
-        </Badge>
-      )}
-    </Box>
-  );
-
   // Stil für die verschiedenen Status
   const getStatusStyle = (status) => {
     switch (status) {
-      case 'added': return { color: 'success.main', fontWeight: 'bold' };
-      case 'removed': return { color: 'error.main', fontWeight: 'bold' };
-      case 'changed': return { color: 'warning.main', fontWeight: 'bold' };
+      case 'added': return { color: '#7D9692', fontWeight: 'bold' };
+      case 'removed': return { color: '#C1666B', fontWeight: 'bold' };
+      case 'changed': return { color: '#E3B23C', fontWeight: 'bold' };
       default: return {};
     }
   };
 
   // Status-Icon für Codes
-  const getStatusIcon = (status) => {
+  const getStatusIcon = (item) => {
+    const { status, subStatus } = item;
+    
     switch (status) {
-      case 'added': return <AddIcon fontSize="small" color="success" />;
-      case 'removed': return <RemoveIcon fontSize="small" color="error" />;
-      case 'changed': return <ChangeCircleIcon fontSize="small" color="warning" />;
-      default: return null;
+      case 'added':
+        if (subStatus === 'replacement') return <CompareArrowsIcon fontSize="small" sx={{ color: '#7D9692' }} />;
+        return <AddIcon fontSize="small" sx={{ color: '#7D9692' }} />;
+      case 'removed':
+        if (subStatus === 'redirected') return <ArrowForwardIcon fontSize="small" sx={{ color: '#C1666B' }} />;
+        return <RemoveIcon fontSize="small" sx={{ color: '#C1666B' }} />;
+      case 'changed':
+        return <ChangeCircleIcon fontSize="small" sx={{ color: '#E3B23C' }} />;
+      default:
+        return null;
     }
   };
 
+  // Status-Zusammenfassung als Badges darstellen
+  const renderStatusBadges = (stats) => (
+    <Box sx={{ display: 'flex', gap: 1, ml: 2 }}>
+      {stats.added.total > 0 && (
+        <Badge badgeContent={stats.added.total} sx={{ '& .MuiBadge-badge': { fontSize: '0.7rem', bgcolor: '#7D9692', color: 'white' } }}>
+          <Chip size="small" label={STATUS_LABELS.added} sx={{ color: '#7D9692', borderColor: '#7D9692' }} variant="outlined" />
+        </Badge>
+      )}
+      {stats.removed.total > 0 && (
+        <Badge badgeContent={stats.removed.total} sx={{ '& .MuiBadge-badge': { fontSize: '0.7rem', bgcolor: '#C1666B', color: 'white' } }}>
+          <Chip size="small" label={STATUS_LABELS.removed} sx={{ color: '#C1666B', borderColor: '#C1666B' }} variant="outlined" />
+        </Badge>
+      )}
+      {stats.changed > 0 && (
+        <Badge badgeContent={stats.changed} sx={{ '& .MuiBadge-badge': { fontSize: '0.7rem', bgcolor: '#E3B23C', color: 'white' } }}>
+          <Chip size="small" label={STATUS_LABELS.changed} sx={{ color: '#E3B23C', borderColor: '#E3B23C' }} variant="outlined" />
+        </Badge>
+      )}
+    </Box>
+  );
+
   // Render der Diff-Details für einen Code
   const renderDiffDetails = (item) => {
-    if (item.status !== 'changed' || !item.diff) return null;
+    if (item.status !== 'changed' || !item.diffDetails || !areConsecutiveYears) return null;
     
     return (
       <Box sx={{ pl: 4, pt: 1 }}>
         <Typography variant="subtitle2" gutterBottom>Feldänderungen:</Typography>
         <List dense>
-          {Object.entries(item.diff).map(([field, values]) => (
+          {Object.entries(item.diffDetails).map(([field, values]) => (
             <ListItem key={field}>
               <ListItemText
                 primary={field}
@@ -238,24 +357,108 @@ export default function CatalogDiffTree({ diffTree }) {
     );
   };
 
+  // Migrationsinformationen für einen Code darstellen (Umsteiger-Info)
+  const renderMigrationInfo = (item) => {
+    if (!item.migrationTarget && !item.migrationSource) return null;
+    
+    return (
+      <Box sx={{ pl: 4, pt: 1, mb: 2 }}>
+        {item.migrationTarget && (
+          <Box sx={{ mb: 1 }}>
+            <Typography variant="subtitle2" gutterBottom>Umsteiger-Information:</Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <ArrowForwardIcon fontSize="small" color="primary" sx={{ mr: 1 }} />
+              <Typography variant="body2">
+                Dieser Code wurde ersetzt durch: 
+                <Button 
+                  variant="text" 
+                  size="small" 
+                  sx={{ ml: 1, textTransform: 'none' }}
+                  onClick={() => jumpToCode(item.migrationTarget)}
+                >
+                  {item.migrationTarget}
+                </Button>
+              </Typography>
+            </Box>
+          </Box>
+        )}
+        
+        {item.migrationSource && Array.isArray(item.migrationSource) && item.migrationSource.length > 0 && (
+          <Box>
+            <Typography variant="subtitle2" gutterBottom>Umsteiger-Information:</Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <ArrowBackIcon fontSize="small" color="primary" sx={{ mr: 1 }} />
+              <Typography variant="body2">
+                Dieser Code ersetzt:
+                <Box component="span">
+                  {item.migrationSource.map((source, index) => (
+                    <Button 
+                      key={source}
+                      variant="text" 
+                      size="small" 
+                      sx={{ ml: 1, textTransform: 'none' }}
+                      onClick={() => jumpToCode(source)}
+                    >
+                      {source}{index < item.migrationSource.length - 1 ? ',' : ''}
+                    </Button>
+                  ))}
+                </Box>
+              </Typography>
+            </Box>
+          </Box>
+        )}
+      </Box>
+    );
+  };
+
   // Beschreibung für einen Code je nach Katalogtyp
   const getCodeDescription = (item) => {
     const isICD = catalogType === 'icd';
     
     if (isICD) {
-      return item.new?.beschreibung || item.old?.beschreibung || '';
+      return item.newCode?.beschreibung || item.oldCode?.beschreibung || '';
     } else {
       // OPS verwendet oft 'titel' statt 'beschreibung'
-      return item.new?.titel || item.old?.titel || 
-             item.new?.beschreibung || item.old?.beschreibung || '';
+      return item.newCode?.titel || item.oldCode?.titel || 
+             item.newCode?.beschreibung || item.oldCode?.beschreibung || '';
     }
+  };
+
+  // Sub-Status Chip rendern mit spezifischerem Label
+  const renderSubStatusChip = (item) => {
+    const { status, subStatus } = item;
+    
+    if (!subStatus) return null;
+    
+    let color, label, chipColor;
+    
+    if (status === 'added') {
+      color = '#7D9692';
+      chipColor = { color: '#7D9692', borderColor: '#7D9692' };
+      label = subStatus === 'new' ? STATUS_LABELS.new : STATUS_LABELS.replacement;
+    } else if (status === 'removed') {
+      color = '#C1666B';
+      chipColor = { color: '#C1666B', borderColor: '#C1666B' };
+      label = subStatus === 'deprecated' ? STATUS_LABELS.deprecated : STATUS_LABELS.redirected;
+    } else {
+      return null;
+    }
+    
+    return (
+      <Chip 
+        label={label} 
+        size="small" 
+        sx={{ ...chipColor, ml: 0.5, fontSize: '0.7rem' }}
+        variant="outlined"
+      />
+    );
   };
 
   // Render eines Codes
   const renderCode = (item) => (
     <Accordion 
       key={item.code}
-      expanded={!!expandedNodes[`code-${item.code}`]}
+      expanded={!!expandedNodes[`code-${item.code}`] || selectedCode === item.code}
       onChange={() => toggleNode(`code-${item.code}`)}
       sx={{ 
         ...getStatusStyle(item.status), 
@@ -263,35 +466,43 @@ export default function CatalogDiffTree({ diffTree }) {
         mb: 0.5,
         '&:before': { display: 'none' },
         boxShadow: 'none',
-        border: '1px solid rgba(0, 0, 0, 0.12)'
+        border: '1px solid rgba(0, 0, 0, 0.12)',
+        backgroundColor: selectedCode === item.code ? 'rgba(0, 0, 0, 0.04)' : 'inherit'
       }}
+      id={`code-${item.code}`}
     >
       <AccordionSummary 
         expandIcon={<ExpandMoreIcon />}
         sx={{ minHeight: 'unset', '& .MuiAccordionSummary-content': { margin: '8px 0' } }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-          <ArticleIcon fontSize="small" sx={{ mr: 1, color: 'text.secondary' }} />
-          <Typography sx={{ flexGrow: 1 }}>
+          {getStatusIcon(item)}
+          <Typography sx={{ ml: 1, flexGrow: 1 }}>
             {item.code}
-            {getCodeDescription(item) && 
+            {areConsecutiveYears && getCodeDescription(item) && 
               <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 1 }}>
                 — {getCodeDescription(item)}
               </Typography>
             }
           </Typography>
-          <Chip 
-            label={item.status} 
-            size="small" 
-            color={
-              item.status === 'added' ? 'success' :
-              item.status === 'removed' ? 'error' : 'warning'
-            } 
-            sx={{ ml: 1 }}
-          />
+          <Box>
+            <Chip 
+              label={STATUS_LABELS[item.status]} 
+              size="small" 
+              sx={{ 
+                ml: 1,
+                bgcolor: item.status === 'added' ? '#7D9692' :
+                         item.status === 'removed' ? '#C1666B' : 
+                         '#E3B23C',
+                color: 'white'
+              }}
+            />
+            {renderSubStatusChip(item)}
+          </Box>
         </Box>
       </AccordionSummary>
       <AccordionDetails sx={{ p: 1 }}>
+        {areConsecutiveYears && renderMigrationInfo(item)}
         {renderDiffDetails(item)}
       </AccordionDetails>
     </Accordion>
@@ -320,7 +531,7 @@ export default function CatalogDiffTree({ diffTree }) {
           <Typography sx={{ flexGrow: 1 }}>
             {group.title}
             <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 1 }}>
-              ({group.stats.total} {group.stats.total === 1 ? 'Code' : 'Codes'})
+              ({group.stats.total} {group.stats.total === 1 ? 'Änderung' : 'Änderungen'})
             </Typography>
           </Typography>
           {renderStatusBadges(group.stats)}
@@ -351,7 +562,7 @@ export default function CatalogDiffTree({ diffTree }) {
           <Typography variant="subtitle1" sx={{ flexGrow: 1 }}>
             {kapitel.title}
             <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 1 }}>
-              ({kapitel.stats.total} {kapitel.stats.total === 1 ? 'Code' : 'Codes'})
+              ({kapitel.stats.total} {kapitel.stats.total === 1 ? 'Änderung' : 'Änderungen'})
             </Typography>
           </Typography>
           {renderStatusBadges(kapitel.stats)}
@@ -375,6 +586,40 @@ export default function CatalogDiffTree({ diffTree }) {
     </Accordion>
   );
 
+  // Render der Statistik
+  const renderStats = () => (
+    <Box sx={{ mb: 3 }}>
+      <Typography variant="h6" gutterBottom>
+        Diff-Statistik
+      </Typography>
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+        <Box sx={{ minWidth: 150 }}>
+          <Typography variant="subtitle2" sx={{ color: '#7D9692' }}>Hinzugefügt ({stats.added.total})</Typography>
+          {areConsecutiveYears && (
+            <Box sx={{ pl: 2 }}>
+              <Typography variant="body2">Neu: {stats.added.new}</Typography>
+              <Typography variant="body2">Ersatz für alte Codes: {stats.added.replacement}</Typography>
+            </Box>
+          )}
+        </Box>
+        
+        <Box sx={{ minWidth: 150 }}>
+          <Typography variant="subtitle2" sx={{ color: '#C1666B' }}>Entfernt ({stats.removed.total})</Typography>
+          {areConsecutiveYears && (
+            <Box sx={{ pl: 2 }}>
+              <Typography variant="body2">Ersatzlos: {stats.removed.deprecated}</Typography>
+              <Typography variant="body2">Umkodiert: {stats.removed.redirected}</Typography>
+            </Box>
+          )}
+        </Box>
+        
+        <Box sx={{ minWidth: 150 }}>
+          <Typography variant="subtitle2" sx={{ color: '#E3B23C' }}>Geändert: {stats.changed}</Typography>
+        </Box>
+      </Box>
+    </Box>
+  );
+
   return (
     <Paper sx={{ p: 2 }}>
       <Box sx={{ mb: 2 }}>
@@ -382,12 +627,11 @@ export default function CatalogDiffTree({ diffTree }) {
           {catalogType.toUpperCase()} Diff-Ergebnisse
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          Insgesamt {stats.total} Codes verglichen, davon {stats.added + stats.removed + stats.changed} mit Unterschieden:
-          {' '}<Chip size="small" label={`${stats.added} hinzugefügt`} color="success" sx={{ mr: 1 }} />
-          {' '}<Chip size="small" label={`${stats.removed} entfernt`} color="error" sx={{ mr: 1 }} />
-          {' '}<Chip size="small" label={`${stats.changed} geändert`} color="warning" />
+          Insgesamt {stats.total} Codes verglichen, davon {stats.added.total + stats.removed.total + stats.changed} mit Unterschieden
         </Typography>
       </Box>
+      
+      {renderStats()}
       
       {diffsOnly.length === 0 ? (
         <Typography variant="body1" color="text.secondary" sx={{ py: 4, textAlign: 'center' }}>

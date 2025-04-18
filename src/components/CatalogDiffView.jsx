@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Box, Button, FormControl, InputLabel, MenuItem, Select, Typography, CircularProgress, Alert } from '@mui/material';
-import { loadICDData, loadOPSData, getAvailableYears } from '../services/dataService';
+import { loadICDData, loadOPSData, getAvailableYears, loadOPSMigrationData } from '../services/dataService';
 import { diffCatalogs } from '../utils/catalogDiff';
 // Platzhalter für die Baum-Komponente
 // (später implementieren)
@@ -30,13 +30,17 @@ export default function CatalogDiffView() {
     setDiffTree(null);
     setLoading(true);
     try {
-      let oldData, newData;
+      let oldData, newData, migrationData = null;
       if (catalogType === 'icd') {
         oldData = await loadICDData(yearOld);
         newData = await loadICDData(yearNew);
       } else {
         oldData = await loadOPSData(yearOld);
         newData = await loadOPSData(yearNew);
+        
+        // Lade OPS-Umsteiger-Daten (nur für OPS relevant)
+        migrationData = await loadOPSMigrationData(yearOld, yearNew);
+        console.log('OPS-Umsteiger geladen:', migrationData);
       }
       
       // Logging hinzufügen
@@ -55,7 +59,14 @@ export default function CatalogDiffView() {
         }
       }
       
-      const diff = diffCatalogs({ oldCatalog: oldData, newCatalog: newData, type: catalogType });
+      const diff = diffCatalogs({ 
+        oldCatalog: oldData, 
+        newCatalog: newData, 
+        type: catalogType,
+        migrationData,
+        oldYear: yearOld,
+        newYear: yearNew
+      });
       setDiffTree(diff);
     } catch (e) {
       setError(e.message || 'Fehler beim Laden oder Vergleichen der Kataloge.');

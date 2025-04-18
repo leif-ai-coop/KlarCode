@@ -723,4 +723,63 @@ export const searchOPSCodes = async (input, year, showChildCodes = false) => {
     errors.push(`Fehler bei der Suche: ${error.message}`);
     return { results, duplicatesRemoved: 0, errors };
   }
-}; 
+};
+
+/**
+ * Lädt die OPS-Umsteiger-Daten für den Vergleich zwischen zwei Jahren
+ * Format: alter_kode;flag;neuer_kode;flag;flag1;flag2
+ * @param {string} oldYear - Das alte Jahr (Ausgangsversion)
+ * @param {string} newYear - Das neue Jahr (Zielversion)
+ * @returns {Promise<Object>} - Ein Objekt mit den Umsteiger-Mappings
+ */
+export async function loadOPSMigrationData(oldYear, newYear) {
+  try {
+    // Baue Pfad zur Umsteiger-Datei, die im Format "ops[newYear]syst_umsteiger_[oldYear]_[newYear].txt" vorliegt
+    const fileName = `ops${newYear}syst_umsteiger_${oldYear}_${newYear}.txt`;
+    const filePath = `/data/${newYear}/ops/${fileName}`;
+    
+    // Lade die Umsteiger-Datei
+    const response = await fetch(filePath);
+    if (!response.ok) {
+      console.warn(`Umsteiger-Datei nicht gefunden: ${filePath}`);
+      return { fromOld: {}, toNew: {}, hasMigrationData: false };
+    }
+    
+    const text = await response.text();
+    const lines = text.split('\n').filter(line => line.trim().length > 0);
+    
+    // Initialisiere Mappings in beide Richtungen
+    const fromOld = {}; // altes -> neues Mapping
+    const toNew = {};   // neues -> altes Mapping
+    
+    // Verarbeite jede Zeile
+    lines.forEach(line => {
+      const parts = line.split(';');
+      if (parts.length >= 4) {
+        const oldCode = parts[0].trim();
+        const newCode = parts[2].trim();
+        
+        // Ignoriere Einträge, bei denen alter und neuer Code identisch sind
+        if (oldCode !== newCode) {
+          fromOld[oldCode] = newCode;
+          
+          // Für den umgekehrten Fall müssen wir aufpassen, da mehrere alte Codes
+          // auf denselben neuen Code umsteigen können
+          if (!toNew[newCode]) {
+            toNew[newCode] = [];
+          }
+          toNew[newCode].push(oldCode);
+        }
+      }
+    });
+    
+    return { 
+      fromOld, 
+      toNew,
+      hasMigrationData: Object.keys(fromOld).length > 0
+    };
+  } catch (error) {
+    console.error("Fehler beim Laden der OPS-Umsteiger-Daten:", error);
+    return { fromOld: {}, toNew: {}, hasMigrationData: false };
+  }
+} 
