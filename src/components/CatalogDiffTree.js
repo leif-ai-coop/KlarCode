@@ -406,6 +406,16 @@ export default function CatalogDiffTree({ diffTree }) {
                 >
                   {item.migrationTarget}
                 </Button>
+                
+                {/* Überleitbarkeits-Badge für vorwärts (von alt nach neu) */}
+                {typeof item.autoForward !== 'undefined' && (
+                  <Chip 
+                    label={item.autoForward ? "Automatisch überleitbar" : "Manuell überleiten"} 
+                    size="small" 
+                    color={item.autoForward ? "success" : "warning"}
+                    sx={{ ml: 1, fontSize: '0.7rem' }}
+                  />
+                )}
               </Typography>
             </Box>
           </Box>
@@ -430,6 +440,16 @@ export default function CatalogDiffTree({ diffTree }) {
                       {source}{index < item.migrationSource.length - 1 ? ',' : ''}
                     </Button>
                   ))}
+                  
+                  {/* Überleitbarkeits-Badge für rückwärts (von neu nach alt) */}
+                  {typeof item.autoBackward !== 'undefined' && (
+                    <Chip 
+                      label={item.autoBackward ? "Automatisch rücküberleitbar" : "Manuell rücküberleiten"} 
+                      size="small" 
+                      color={item.autoBackward ? "success" : "warning"}
+                      sx={{ ml: 1, fontSize: '0.7rem' }}
+                    />
+                  )}
                 </Box>
               </Typography>
             </Box>
@@ -645,6 +665,37 @@ export default function CatalogDiffTree({ diffTree }) {
           <Typography variant="subtitle2" sx={{ color: '#E3B23C' }}>Geändert: {stats.changed}</Typography>
         </Box>
       </Box>
+      
+      {/* Legende für die automatische Überleitbarkeit */}
+      {areConsecutiveYears && (
+        <Box sx={{ mt: 2, borderTop: '1px solid rgba(0,0,0,0.12)', pt: 2 }}>
+          <Typography variant="subtitle2" gutterBottom>Legende zur Überleitbarkeit:</Typography>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <Chip 
+                label="Automatisch überleitbar" 
+                size="small" 
+                color="success" 
+                sx={{ mr: 1 }}
+              />
+              <Typography variant="body2">
+                Code kann systemseitig automatisch umgesetzt werden
+              </Typography>
+            </Box>
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <Chip 
+                label="Manuell überleiten" 
+                size="small" 
+                color="warning" 
+                sx={{ mr: 1 }}
+              />
+              <Typography variant="body2">
+                Manuelle fachliche Prüfung erforderlich
+              </Typography>
+            </Box>
+          </Box>
+        </Box>
+      )}
     </Box>
   );
 

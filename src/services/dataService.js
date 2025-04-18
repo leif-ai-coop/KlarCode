@@ -840,16 +840,29 @@ export async function loadICDMigrationData(oldYear, newYear) {
           const parts = line.split(';').map(p => p.trim());
           const oldCode = parts[0] || '';
           const newCode = parts[1] || '';
+          const forwardAutomaticFlag = parts[2] === 'A';  // Von alt nach neu
+          const backwardAutomaticFlag = parts[3] === 'A'; // Von neu nach alt
+          
           // Normalisiere die Keys wie im Diff
           const normOld = normalizeCodeKey({ kode: oldCode }, 'icd');
           const normNew = newCode ? normalizeCodeKey({ kode: newCode }, 'icd') : '';
+          
           if (normOld) {
             if (normNew && normOld !== normNew) {
-              fromOld[normOld] = normNew;
+              fromOld[normOld] = {
+                code: normNew,
+                autoForward: forwardAutomaticFlag,
+                autoBackward: backwardAutomaticFlag
+              };
+              
               if (!toNew[normNew]) {
                 toNew[normNew] = [];
               }
-              toNew[normNew].push(normOld);
+              toNew[normNew].push({
+                code: normOld,
+                autoForward: forwardAutomaticFlag,
+                autoBackward: backwardAutomaticFlag
+              });
             } else if (!normNew) {
               fromOld[normOld] = null;
             }
@@ -896,16 +909,29 @@ export async function loadICDMigrationData(oldYear, newYear) {
           const parts = line.split(';').map(p => p.trim());
           const oldCode = parts[0] || '';
           const newCode = parts[1] || '';
+          const forwardAutomaticFlag = parts[2] === 'A';  // Von alt nach neu
+          const backwardAutomaticFlag = parts[3] === 'A'; // Von neu nach alt
+          
           // Normalisiere die Keys wie im Diff
           const normOld = normalizeCodeKey({ kode: oldCode }, 'icd');
           const normNew = newCode ? normalizeCodeKey({ kode: newCode }, 'icd') : '';
+          
           if (normOld) {
             if (normNew && normOld !== normNew) {
-              fromOld[normOld] = normNew;
+              fromOld[normOld] = {
+                code: normNew,
+                autoForward: forwardAutomaticFlag,
+                autoBackward: backwardAutomaticFlag
+              };
+              
               if (!toNew[normNew]) {
                 toNew[normNew] = [];
               }
-              toNew[normNew].push(normOld);
+              toNew[normNew].push({
+                code: normOld,
+                autoForward: forwardAutomaticFlag,
+                autoBackward: backwardAutomaticFlag
+              });
             } else if (!normNew) {
               fromOld[normOld] = null;
             }
@@ -1058,16 +1084,29 @@ export async function loadICDMigrationData(oldYear, newYear) {
       const parts = line.split(';').map(p => p.trim());
       const oldCode = parts[0] || '';
       const newCode = parts[1] || '';
+      const forwardAutomaticFlag = parts[2] === 'A';  // Von alt nach neu
+      const backwardAutomaticFlag = parts[3] === 'A'; // Von neu nach alt
+      
       // Normalisiere die Keys wie im Diff
       const normOld = normalizeCodeKey({ kode: oldCode }, 'icd');
       const normNew = newCode ? normalizeCodeKey({ kode: newCode }, 'icd') : '';
+      
       if (normOld) {
         if (normNew && normOld !== normNew) {
-          fromOld[normOld] = normNew;
+          fromOld[normOld] = {
+            code: normNew,
+            autoForward: forwardAutomaticFlag,
+            autoBackward: backwardAutomaticFlag
+          };
+          
           if (!toNew[normNew]) {
             toNew[normNew] = [];
           }
-          toNew[normNew].push(normOld);
+          toNew[normNew].push({
+            code: normOld,
+            autoForward: forwardAutomaticFlag,
+            autoBackward: backwardAutomaticFlag
+          });
         } else if (!normNew) {
           fromOld[normOld] = null;
         }

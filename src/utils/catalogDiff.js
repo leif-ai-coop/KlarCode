@@ -176,6 +176,8 @@ export function diffCatalogs({ oldCatalog, newCatalog, type, migrationData = nul
     let diffDetails = null;
     let migrationTarget = null;
     let migrationSource = null;
+    let autoForward = undefined;
+    let autoBackward = undefined;
     
     if (!oldCode) {
       codeStatus = 'added';
@@ -183,9 +185,29 @@ export function diffCatalogs({ oldCatalog, newCatalog, type, migrationData = nul
       // Prüfe, ob dieser neu hinzugefügte Code ein Ersatz für einen alten Code ist
       if (hasMigrationData && migrationData.toNew[codeKey]) {
         subStatus = 'replacement';
-        migrationSource = Array.isArray(migrationData.toNew[codeKey]) 
-          ? migrationData.toNew[codeKey] 
-          : [migrationData.toNew[codeKey]];
+        const migrationsInfo = migrationData.toNew[codeKey];
+        
+        // Überprüfen ob es ein Array von Code-Objekten oder einfach ein Array von Strings ist
+        if (Array.isArray(migrationsInfo)) {
+          if (migrationsInfo.length > 0 && typeof migrationsInfo[0] === 'object') {
+            // Neues Format: Array von Objekten mit Überleitbarkeitsinformationen
+            migrationSource = migrationsInfo.map(info => info.code);
+            // Setzen wir autoForward und autoBackward basierend auf dem ersten Eintrag
+            // (könnte erweitert werden, um alle Einträge zu berücksichtigen)
+            autoForward = migrationsInfo[0].autoForward;
+            autoBackward = migrationsInfo[0].autoBackward;
+          } else {
+            // Altes Format: Array von Strings (direkten Codes)
+            migrationSource = migrationsInfo;
+            autoForward = undefined;
+            autoBackward = undefined;
+          }
+        } else {
+          // Einzelner Wert
+          migrationSource = [migrationsInfo];
+          autoForward = undefined;
+          autoBackward = undefined;
+        }
       } else {
         subStatus = 'new';
       }
@@ -196,7 +218,21 @@ export function diffCatalogs({ oldCatalog, newCatalog, type, migrationData = nul
       // Prüfe, ob für diesen entfernten Code ein Umstieg existiert
       if (hasMigrationData && migrationData.fromOld[codeKey]) {
         subStatus = 'redirected';
-        migrationTarget = migrationData.fromOld[codeKey];
+        const migrationInfo = migrationData.fromOld[codeKey];
+        
+        // Überprüfe, ob migrationInfo ein Objekt oder ein String ist (Kompatibilität mit älterem Format)
+        if (typeof migrationInfo === 'object' && migrationInfo !== null) {
+          migrationTarget = migrationInfo.code;
+          // Überleitbarkeitsinformationen aus dem Datenmodell
+          autoForward = migrationInfo.autoForward;
+          autoBackward = migrationInfo.autoBackward;
+        } else {
+          // Älteres Format, wo migrationInfo direkt der Zielcode ist
+          migrationTarget = migrationInfo;
+          // Keine Überleitbarkeitsinformationen vorhanden
+          autoForward = undefined;
+          autoBackward = undefined;
+        }
       } else {
         subStatus = 'deprecated';
       }
@@ -220,6 +256,8 @@ export function diffCatalogs({ oldCatalog, newCatalog, type, migrationData = nul
       diffDetails,
       migrationTarget,
       migrationSource,
+      autoForward,
+      autoBackward,
       oldYear,
       newYear
     };
