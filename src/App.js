@@ -5,7 +5,11 @@ import {
   Box, 
   ThemeProvider, 
   createTheme, 
-  CircularProgress
+  CircularProgress,
+  FormControlLabel,
+  Checkbox,
+  Link,
+  Typography
 } from '@mui/material';
 import { grey } from '@mui/material/colors';
 import Header from './components/Header';
@@ -92,6 +96,9 @@ function App() {
     return 'light';
   });
   
+  // Add state for terms acceptance
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  
   // Update localStorage when theme changes
   const toggleColorMode = () => {
     setMode((prevMode) => {
@@ -171,44 +178,81 @@ function App() {
           <Header toggleColorMode={toggleColorMode} />
           
           <Container maxWidth="lg" sx={{ mt: 4, mb: 4, flex: 1 }}>
-            <Box sx={{ p: 3, borderRadius: 3, boxShadow: 2, background: theme.palette.background.paper }}>
-              <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)} sx={{ mb: 2 }}>
-                <Tab label="Suche" />
-                <Tab label="ICD/OPS-Delta" />
-              </Tabs>
-              {activeTab === 0 && (
-                <>
-                  <SearchBox
-                    searchInput={searchInput}
-                    onInputChange={handleInputChange}
-                    onSearch={handleSearch}
-                    onClear={handleClear}
-                    isLoading={isLoading}
-                    selectedYear={selectedYear}
-                    onYearChange={handleYearChange}
-                    errors={errors}
-                  />
-                  {isLoading ? (
-                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-                      <CircularProgress />
-                    </Box>
-                  ) : (
-                    <ResultsTable
-                      results={searchResults}
-                      duplicatesRemoved={duplicatesRemoved}
-                      removedDuplicates={removedDuplicates}
-                      showMore={showMore}
-                      toggleShowMore={toggleShowMore}
-                      searchType={searchType}
-                      onCopyCode={handleCopyCode}
+            <Box sx={{ 
+              p: 3, 
+              borderRadius: 3, 
+              boxShadow: 2, 
+              background: theme.palette.background.paper,
+            }}>
+              <Box sx={{ 
+                opacity: termsAccepted ? 1 : 0.5, // Dim if not accepted
+                pointerEvents: termsAccepted ? 'auto' : 'none' // Disable interaction if not accepted
+              }}>
+                <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)} sx={{ mb: 2 }}>
+                  <Tab label="Suche" />
+                  <Tab label="ICD/OPS-Delta" />
+                </Tabs>
+                {activeTab === 0 && (
+                  <>
+                    <SearchBox
+                      searchInput={searchInput}
+                      onInputChange={handleInputChange}
+                      onSearch={handleSearch}
+                      onClear={handleClear}
+                      isLoading={isLoading}
+                      selectedYear={selectedYear}
+                      onYearChange={handleYearChange}
                       errors={errors}
                     />
-                  )}
-                </>
-              )}
-              {activeTab === 1 && (
-                <CatalogDiffView />
-              )}
+                    {isLoading ? (
+                      <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                        <CircularProgress />
+                      </Box>
+                    ) : (
+                      <ResultsTable
+                        results={searchResults}
+                        duplicatesRemoved={duplicatesRemoved}
+                        removedDuplicates={removedDuplicates}
+                        showMore={showMore}
+                        toggleShowMore={toggleShowMore}
+                        searchType={searchType}
+                        onCopyCode={handleCopyCode}
+                        errors={errors}
+                      />
+                    )}
+                  </>
+                )}
+                {activeTab === 1 && (
+                  <CatalogDiffView />
+                )}
+              </Box>
+
+              <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={termsAccepted}
+                      onChange={(e) => setTermsAccepted(e.target.checked)}
+                      name="termsAccepted"
+                      color="primary"
+                    />
+                  }
+                  label={
+                    <Typography variant="body2">
+                      Ich habe die{' '}
+                      <Link 
+                        href="https://warming.cloud/terms/nutzungsbedingungen.html" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()} // Prevent label click from toggling checkbox
+                      >
+                        Nutzungsbedingungen
+                      </Link>
+                      {' '}gelesen und akzeptiere sie.
+                    </Typography>
+                  }
+                />
+              </Box>
             </Box>
           </Container>
           
