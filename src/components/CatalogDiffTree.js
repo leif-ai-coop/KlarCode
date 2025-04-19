@@ -365,9 +365,19 @@ export default function CatalogDiffTree({ diffTree }) {
       if (!groupMap[group]) {
         // Dreisteller-Beschreibung holen wenn verfügbar
         const dreistellerDesc = getDreistellerDescription(group);
-        const groupTitle = isICD ? 
-          `Gruppe ${group}` : 
-          dreistellerDesc ? `${group} ${dreistellerDesc}` : `${group}`;
+        
+        let groupTitle = isICD 
+          ? `Gruppe ${group}` 
+          : dreistellerDesc ? `${group} ${dreistellerDesc}` : `${group}`;
+        
+        // Für ICD und OPS unterschiedlich formatieren
+        if (isICD) {
+          // Bei ICD haben wir keine Dreisteller-Beschreibungen, daher nur "Gruppe X"
+          groupTitle = `Gruppe ${group}`;
+        } else {
+          // Bei OPS mit Dreisteller-Beschreibung oder nur dem Code
+          groupTitle = dreistellerDesc ? `${group} ${dreistellerDesc}` : `${group}`;
+        }
 
         groupMap[group] = {
           id: `group-${group}`,
@@ -880,27 +890,47 @@ export default function CatalogDiffTree({ diffTree }) {
     };
     
     // Filtere alle Codes, die zu diesem Kapitel gehören
-    const kapitelKey = kapitel.title.match(/^(\d|[A-Z])/)[0];
+    // Extrahiere die Kapitel-ID aus dem Titel, da dieser Format "Kapitel X" oder "X - Name" hat
+    const kapitelTitleMatch = kapitel.title.match(/^(?:Kapitel\s+)?(\d|[A-Z])/);
+    if (!kapitelTitleMatch) {
+      console.error(`Konnte keine Kapitel-ID aus dem Titel extrahieren: "${kapitel.title}"`);
+      return {};
+    }
+    
+    const kapitelKey = kapitelTitleMatch[1];
+    console.log(`Extrahierte Kapitel-ID aus Titel "${kapitel.title}": "${kapitelKey}"`);
+    
+    // Filtere Codes, die mit der Kapitel-ID beginnen
     const codesForKapitel = diffsOnly.filter(item => {
-      if (isICD) {
-        return item.code.startsWith(kapitelKey);
-      } else {
-        return item.code.startsWith(kapitelKey);
-      }
+      const startsWithKey = item.code.startsWith(kapitelKey);
+      return startsWithKey;
     });
+    
+    console.log(`Gefundene Codes für Kapitel ${kapitelKey}: ${codesForKapitel.length}`);
     
     // Baue Gruppenstruktur
     const groupMap = {};
     codesForKapitel.forEach(item => {
       const group = extractGroup(item.code);
-      if (!group) return;
+      if (!group) {
+        console.warn(`Konnte keine Gruppe für Code ${item.code} extrahieren`);
+        return;
+      }
+      
       if (!groupMap[group]) {
         // Dreisteller-Beschreibung holen wenn verfügbar
         const dreistellerDesc = getDreistellerDescription(group);
-        const groupTitle = isICD ? 
-          `Gruppe ${group}` : 
-          dreistellerDesc ? `${group} ${dreistellerDesc}` : `${group}`;
-          
+        
+        let groupTitle;
+        // Für ICD und OPS unterschiedlich formatieren
+        if (isICD) {
+          // Bei ICD haben wir keine Dreisteller-Beschreibungen, daher nur "Gruppe X"
+          groupTitle = `Gruppe ${group}`;
+        } else {
+          // Bei OPS mit Dreisteller-Beschreibung oder nur dem Code
+          groupTitle = dreistellerDesc ? `${group} ${dreistellerDesc}` : `${group}`;
+        }
+        
         groupMap[group] = {
           id: `group-${group}`,
           title: groupTitle,
@@ -935,23 +965,55 @@ export default function CatalogDiffTree({ diffTree }) {
   // Lazy Loading für Kapitel
   const handleKapitelExpand = useCallback((kapitel) => {
     if (loadedKapitel[kapitel.id] || loadingKapitel[kapitel.id]) return;
+    
+    console.log(`Kapitel wird expandiert: ${kapitel.id}, Titel: ${kapitel.title}`);
     setLoadingKapitel(prev => ({ ...prev, [kapitel.id]: true }));
-    setTimeout(() => {
+    
+    // Wir führen den Code synchron aus, um Timing-Probleme zu vermeiden
+    try {
       const groups = extractGroupsForKapitel(kapitel);
+      console.log(`Kapitel ${kapitel.id}: ${Object.keys(groups).length} Gruppen gefunden`);
+      
+      // Log einige Beispielgruppen für Debug-Zwecke
+      if (Object.keys(groups).length > 0) {
+        console.log('Beispiel-Gruppen:', Object.entries(groups).slice(0, 2));
+      } else {
+        console.log('Keine Gruppen für dieses Kapitel gefunden!');
+      }
+      
       setLoadedKapitel(prev => ({ ...prev, [kapitel.id]: groups }));
       setLoadingKapitel(prev => ({ ...prev, [kapitel.id]: false }));
-    }, 0); // Simuliere async, kann später durch echten API-Call ersetzt werden
+    } catch (error) {
+      console.error(`Fehler beim Expandieren des Kapitels ${kapitel.id}:`, error);
+      setLoadingKapitel(prev => ({ ...prev, [kapitel.id]: false }));
+    }
   }, [extractGroupsForKapitel, loadedKapitel, loadingKapitel]);
 
   // Lazy Loading für Gruppen
   const handleGroupExpand = useCallback((group, kapitelId) => {
     if (loadedGroups[group.id] || loadingGroup[group.id]) return;
+    
+    console.log(`Gruppe wird expandiert: ${group.id}, Titel: ${group.title}`);
     setLoadingGroup(prev => ({ ...prev, [group.id]: true }));
-    setTimeout(() => {
+    
+    // Synchron ausführen statt mit setTimeout
+    try {
       const codes = extractCodesForGroup(group);
+      console.log(`Gruppe ${group.id}: ${codes.length} Codes geladen`);
+      
+      // Log einige Beispiel-Codes für Debug-Zwecke
+      if (codes.length > 0) {
+        console.log('Beispiel-Codes:', codes.slice(0, 2).map(c => c.code));
+      } else {
+        console.log('Keine Codes für diese Gruppe gefunden!');
+      }
+      
       setLoadedGroups(prev => ({ ...prev, [group.id]: codes }));
       setLoadingGroup(prev => ({ ...prev, [group.id]: false }));
-    }, 0);
+    } catch (error) {
+      console.error(`Fehler beim Expandieren der Gruppe ${group.id}:`, error);
+      setLoadingGroup(prev => ({ ...prev, [group.id]: false }));
+    }
   }, [extractCodesForGroup, loadedGroups, loadingGroup]);
 
   // Memoized renderGroup
@@ -959,13 +1021,22 @@ export default function CatalogDiffTree({ diffTree }) {
     const isExpanded = !!expandedNodes[group.id];
     const isLoading = loadingGroup[group.id];
     const codes = loadedGroups[group.id];
+    
+    console.log(`renderGroup: ${group.id}, Expanded: ${isExpanded}, Loading: ${isLoading}, Codes: ${codes ? codes.length : 'none'}`);
+    
     return (
       <Accordion 
         key={group.id}
         expanded={isExpanded}
         onChange={() => {
+          console.log(`Gruppe Toggle: ${group.id}, aktueller Status: ${expandedNodes[group.id] ? 'expanded' : 'collapsed'}`);
           toggleNode(group.id);
-          if (!codes && !isLoading && !loadedGroups[group.id]) handleGroupExpand(group, kapitelId);
+          if (!codes && !isLoading && !loadedGroups[group.id]) {
+            console.log(`Laden der Codes für Gruppe ${group.id}`);
+            handleGroupExpand(group, kapitelId);
+          } else {
+            console.log(`Codes für Gruppe ${group.id} bereits geladen oder im Ladevorgang`);
+          }
         }}
         sx={{ 
           ml: 2, 
@@ -991,7 +1062,17 @@ export default function CatalogDiffTree({ diffTree }) {
           </Box>
         </AccordionSummary>
         <AccordionDetails sx={{ p: 0 }}>
-          {isLoading && <Box sx={{ p: 2, textAlign: 'center' }}><CircularProgress size={24} /></Box>}
+          {isLoading && (
+            <Box sx={{ p: 2, textAlign: 'center' }}>
+              <CircularProgress size={24} />
+              <Typography variant="body2" sx={{ mt: 1 }}>Lade Codes...</Typography>
+            </Box>
+          )}
+          {codes && codes.length === 0 && (
+            <Box sx={{ p: 2, textAlign: 'center' }}>
+              <Typography variant="body2" color="text.secondary">Keine Codes gefunden</Typography>
+            </Box>
+          )}
           {codes && codes.map(renderCode)}
         </AccordionDetails>
       </Accordion>
@@ -1003,13 +1084,22 @@ export default function CatalogDiffTree({ diffTree }) {
     const isExpanded = !!expandedNodes[kapitel.id];
     const isLoading = loadingKapitel[kapitel.id];
     const groups = loadedKapitel[kapitel.id];
+    
+    console.log(`renderKapitel: ${kapitel.id}, Expanded: ${isExpanded}, Loading: ${isLoading}, Groups: ${groups ? Object.keys(groups).length : 'none'}`);
+    
     return (
       <Accordion 
         key={kapitel.id}
         expanded={isExpanded}
         onChange={() => {
+          console.log(`Kapitel Toggle: ${kapitel.id}, aktueller Status: ${expandedNodes[kapitel.id] ? 'expanded' : 'collapsed'}`);
           toggleNode(kapitel.id);
-          if (!groups && !isLoading && !loadedKapitel[kapitel.id]) handleKapitelExpand(kapitel);
+          if (!groups && !isLoading && !loadedKapitel[kapitel.id]) {
+            console.log(`Laden der Gruppen für Kapitel ${kapitel.id}`);
+            handleKapitelExpand(kapitel);
+          } else {
+            console.log(`Gruppen für Kapitel ${kapitel.id} bereits geladen oder im Ladevorgang`);
+          }
         }}
         sx={{ mb: 1 }}
       >
@@ -1029,7 +1119,17 @@ export default function CatalogDiffTree({ diffTree }) {
           </Box>
         </AccordionSummary>
         <AccordionDetails sx={{ p: 0 }}>
-          {isLoading && <Box sx={{ p: 2, textAlign: 'center' }}><CircularProgress size={24} /></Box>}
+          {isLoading && (
+            <Box sx={{ p: 2, textAlign: 'center' }}>
+              <CircularProgress size={24} />
+              <Typography variant="body2" sx={{ mt: 1 }}>Lade Gruppen...</Typography>
+            </Box>
+          )}
+          {groups && Object.keys(groups).length === 0 && (
+            <Box sx={{ p: 2, textAlign: 'center' }}>
+              <Typography variant="body2" color="text.secondary">Keine Gruppen gefunden</Typography>
+            </Box>
+          )}
           {groups && Object.values(groups)
             .sort((a, b) => {
               if (catalogType === 'icd') {
