@@ -74,12 +74,6 @@ const SearchResults = ({ results, searchType, onCopyCode, showMore, onToggleShow
     document.body.removeChild(link);
   };
   
-  // Funktion zum Exportieren als Excel
-  const exportExcel = () => {
-    // Excel-Export-Logik hier implementieren
-    alert("Excel-Export wird implementiert...");
-  };
-  
   // Add these console logs before the return statement
   console.log('SearchResults props:', {
     resultsLength: results.length,
@@ -138,9 +132,6 @@ const SearchResults = ({ results, searchType, onCopyCode, showMore, onToggleShow
         </button>
         <button onClick={exportCSV}>
           <i className="fas fa-file-csv"></i> CSV EXPORT
-        </button>
-        <button onClick={exportExcel}>
-          <i className="fas fa-file-excel"></i> EXCEL EXPORT
         </button>
       </div>
       
