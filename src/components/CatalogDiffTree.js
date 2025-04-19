@@ -700,7 +700,7 @@ export default function CatalogDiffTree({
             <Typography variant="subtitle2" gutterBottom>Umsteiger-Information:</Typography>
             <Box sx={{ display: 'flex', alignItems: 'center' }}>
               <ArrowForwardIcon fontSize="small" color="primary" sx={{ mr: 1 }} />
-              <Typography variant="body2">
+              <Typography variant="body2" component="div">
                 Dieser Code wurde ersetzt durch: 
                 <Chip
                   label={item.migrationTarget}
@@ -756,7 +756,7 @@ export default function CatalogDiffTree({
             <Typography variant="subtitle2" gutterBottom>Umsteiger-Information:</Typography>
             <Box sx={{ display: 'flex', alignItems: 'center' }}>
               <ArrowBackIcon fontSize="small" color="primary" sx={{ mr: 1 }} />
-              <Typography variant="body2">
+              <Typography variant="body2" component="div">
                 Dieser Code ersetzt:
                 <Box component="span">
                   {item.migrationSource.map((source, index) => (
