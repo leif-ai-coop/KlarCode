@@ -661,29 +661,8 @@ export const findDreistellerRange = (code, dreistellerMap) => {
     }
   }
   
-  // Prüfe alle Bereiche in der Map
-  for (const key in dreistellerMap) {
-    // Überspringe Einträge, die keine Bereichsschlüssel sind
-    if (!key.includes('-') || key.length <= 3) {
-      continue;
-    }
-    
-    // Bereichsschlüssel haben das Format "startCode-endCode"
-    const [startCode, endCode] = key.split('-');
-    
-    // Prüfe, ob der Dreisteller-Code in diesem Bereich liegt (case-insensitive)
-    if (dreistellerCode.toUpperCase() >= startCode.toUpperCase() && 
-        dreistellerCode.toUpperCase() <= endCode.toUpperCase()) {
-      return dreistellerMap[key];
-    }
-    
-    // Alternativ: Prüfe, ob der vollständige Code in diesem Bereich liegt (case-insensitive)
-    if (code.toUpperCase() >= startCode.toUpperCase() && 
-        code.toUpperCase() <= endCode.toUpperCase()) {
-      return dreistellerMap[key];
-    }
-  }
-  
+  // Wenn der exakte Dreisteller-Code nicht gefunden wurde, gibt es keine weitere Suche mehr
+  // in der neuen Struktur, da es keine Bereiche mehr gibt
   return null;
 };
 
