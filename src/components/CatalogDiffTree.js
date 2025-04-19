@@ -149,6 +149,37 @@ export default function CatalogDiffTree({ diffTree }) {
     return descriptions;
   }, [diffTree]);
 
+  // ICD-Gruppenbeschreibungen extrahieren (z.B. für A49)
+  const icdGroupDescriptions = useMemo(() => {
+    if (!diffTree || diffTree.length === 0 || catalogType !== 'icd') return {};
+    
+    console.log('Suche nach ICD-Gruppenbeschreibungen im diffTree...');
+    const descriptions = {};
+    let foundCount = 0;
+
+    diffTree.forEach(item => {
+      // Prüfe, ob der Code dem ICD-Gruppenmuster entspricht (z.B. A49)
+      const groupCodeMatch = item.code.match(/^([A-Z]\d{2})$/);
+      if (groupCodeMatch) {
+        const groupCode = groupCodeMatch[1];
+        const description = item.newCode?.beschreibung || item.oldCode?.beschreibung;
+        if (description && !descriptions[groupCode]) {
+          descriptions[groupCode] = description;
+          foundCount++;
+          if (foundCount <= 5) {
+            console.log(`ICD Gruppe gefunden: ${groupCode} -> "${description}"`);
+          }
+        }
+      }
+    });
+
+    console.log(`Insgesamt ${Object.keys(descriptions).length} ICD-Gruppenbeschreibungen gefunden.`);
+    if (Object.keys(descriptions).length === 0) {
+        console.warn('Keine ICD-Gruppenbeschreibungen gefunden. Überprüfe die Code-Struktur in diffTree.');
+    }
+    return descriptions;
+  }, [diffTree, catalogType]);
+
   // Überprüfen, ob es aufeinanderfolgende Jahre sind (für Umsteiger)
   const areConsecutiveYears = useMemo(() => {
     if (!diffTree || diffTree.length === 0) return false;
@@ -363,17 +394,15 @@ export default function CatalogDiffTree({ diffTree }) {
       
       // Gruppe erstellen falls noch nicht vorhanden
       if (!groupMap[group]) {
-        // Dreisteller-Beschreibung holen wenn verfügbar
-        const dreistellerDesc = getDreistellerDescription(group);
+        // Dreisteller-Beschreibung holen wenn verfügbar (nur für OPS)
+        const dreistellerDesc = !isICD ? getDreistellerDescription(group) : '';
         
-        let groupTitle = isICD 
-          ? `Gruppe ${group}` 
-          : dreistellerDesc ? `${group} ${dreistellerDesc}` : `${group}`;
-        
+        let groupTitle;
         // Für ICD und OPS unterschiedlich formatieren
         if (isICD) {
-          // Bei ICD haben wir keine Dreisteller-Beschreibungen, daher nur "Gruppe X"
-          groupTitle = `Gruppe ${group}`;
+          // Bei ICD die Beschreibung aus der neuen Map holen
+          const icdDesc = icdGroupDescriptions[group] || '';
+          groupTitle = icdDesc ? `${group} - ${icdDesc}` : `Gruppe ${group}`; // Fallback auf Gruppe
         } else {
           // Bei OPS mit Dreisteller-Beschreibung oder nur dem Code
           groupTitle = dreistellerDesc ? `${group} ${dreistellerDesc}` : `${group}`;
@@ -454,7 +483,7 @@ export default function CatalogDiffTree({ diffTree }) {
       // Für ICD: Alphabetische Sortierung (A, B, C, ...)
       return a.title.localeCompare(b.title);
     });
-  }, [diffsOnly, catalogType, dreistellerDescriptions, selectedCode]);
+  }, [diffsOnly, catalogType, dreistellerDescriptions, icdGroupDescriptions, selectedCode]);
 
   // Node expandieren/kollabieren
   const toggleNode = (nodeId) => {
@@ -863,29 +892,26 @@ export default function CatalogDiffTree({ diffTree }) {
         return simpleMatch ? `${simpleMatch[1]}-00` : null;
       }
     };
-    
-    // Funktion zum Abrufen der Dreisteller-Beschreibung
+
+    // Funktion zum Abrufen der Dreisteller-Beschreibung (nur für OPS relevant hier)
     const getDreistellerDescription = (group) => {
-      if (!isICD && dreistellerDescriptions[group]) {
+      if (isICD) return ''; // Nicht relevant für ICD in dieser Funktion
+      
+      if (dreistellerDescriptions[group]) {
         return dreistellerDescriptions[group];
       }
       
-      // Fallback: Suche nach der Beschreibung in den Codes
+      // Fallback: Suche in Codes (sollte idealerweise nicht nötig sein)
       for (const item of diffsOnly) {
         if (item.code.startsWith(group)) {
-          // Direkter Zugriff auf dreisteller-Objekt im Code
           if (item.oldCode?.dreisteller?.description) {
-            console.log(`Dreisteller-Beschreibung gefunden für ${group}:`, item.oldCode.dreisteller.description);
             return item.oldCode.dreisteller.description;
           }
           if (item.newCode?.dreisteller?.description) {
-            console.log(`Dreisteller-Beschreibung gefunden für ${group}:`, item.newCode.dreisteller.description);
             return item.newCode.dreisteller.description;
           }
         }
       }
-      
-      // Wenn keine Beschreibung gefunden wurde, gib nur den Bereichscode zurück
       return '';
     };
     
@@ -918,14 +944,15 @@ export default function CatalogDiffTree({ diffTree }) {
       }
       
       if (!groupMap[group]) {
-        // Dreisteller-Beschreibung holen wenn verfügbar
-        const dreistellerDesc = getDreistellerDescription(group);
+        // Dreisteller-Beschreibung holen wenn verfügbar (nur für OPS)
+        const dreistellerDesc = !isICD ? getDreistellerDescription(group) : '';
         
         let groupTitle;
         // Für ICD und OPS unterschiedlich formatieren
         if (isICD) {
-          // Bei ICD haben wir keine Dreisteller-Beschreibungen, daher nur "Gruppe X"
-          groupTitle = `Gruppe ${group}`;
+          // Bei ICD die Beschreibung aus der neuen Map holen
+          const icdDesc = icdGroupDescriptions[group] || '';
+          groupTitle = icdDesc ? `${group} - ${icdDesc}` : `Gruppe ${group}`; // Fallback auf Gruppe
         } else {
           // Bei OPS mit Dreisteller-Beschreibung oder nur dem Code
           groupTitle = dreistellerDesc ? `${group} ${dreistellerDesc}` : `${group}`;
@@ -954,7 +981,7 @@ export default function CatalogDiffTree({ diffTree }) {
       groupMap[group].stats.total++;
     });
     return groupMap;
-  }, [diffsOnly, catalogType, dreistellerDescriptions]);
+  }, [diffsOnly, catalogType, dreistellerDescriptions, icdGroupDescriptions]);
 
   // Hilfsfunktion: Extrahiere Codes für eine Gruppe
   const extractCodesForGroup = useCallback((group) => {
