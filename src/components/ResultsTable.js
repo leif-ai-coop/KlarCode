@@ -395,7 +395,7 @@ const ResultsTable = ({
         </>
       )}
       
-      <Box sx={{ mb: 2, display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+      <Box sx={{ mb: 2, display: 'flex', flexWrap: 'wrap', gap: 0 }}>
         <FormControlLabel
           control={
             <Switch
