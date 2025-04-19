@@ -921,21 +921,29 @@ export default function CatalogDiffTree({
       return '';
     };
     
-    // Filtere alle Codes, die zu diesem Kapitel gehören
-    // Extrahiere die Kapitel-ID aus dem Titel, da dieser Format "Kapitel X" oder "X - Name" hat
-    const kapitelTitleMatch = kapitel.title.match(/^(?:Kapitel\s+)?(\d|[A-Z])/);
-    if (!kapitelTitleMatch) {
-      console.error(`Konnte keine Kapitel-ID aus dem Titel extrahieren: "${kapitel.title}"`);
+    // Lokale Hilfsfunktion: Kapitel-Schlüssel aus einem Code extrahieren
+    const extractKapitelFromCode = (code) => {
+      if (isICD) {
+        const match = code.match(/^([A-Z])/);
+        return match ? match[1] : null;
+      } else {
+        const match = code.match(/^(\d)[\-.]?/);
+        return match ? match[1] : null;
+      }
+    };
+    
+    // Bestimme den Kapitel-Schlüssel direkt aus der ID ("kapitel-A", "kapitel-5", ...)
+    const kapitelKey = kapitel.id.split('-')[1];
+    if (!kapitelKey) {
+      console.error(`Konnte kapitelKey nicht aus kapitel.id extrahieren: ${kapitel.id}`);
       return {};
     }
-    
-    const kapitelKey = kapitelTitleMatch[1];
-    console.log(`Extrahierte Kapitel-ID aus Titel "${kapitel.title}": "${kapitelKey}"`);
-    
-    // Filtere Codes, die mit der Kapitel-ID beginnen
+    console.log(`Kapitel-Key für Gruppenextraktion: ${kapitelKey}`);
+
+    // Filtere alle Codes, deren Kapitel-Schlüssel mit extractKapitel übereinstimmt
     const codesForKapitel = diffsOnly.filter(item => {
-      const startsWithKey = item.code.startsWith(kapitelKey);
-      return startsWithKey;
+      const itemKapitelKey = extractKapitelFromCode(item.code);
+      return itemKapitelKey === kapitelKey;
     });
     
     console.log(`Gefundene Codes für Kapitel ${kapitelKey}: ${codesForKapitel.length}`);
