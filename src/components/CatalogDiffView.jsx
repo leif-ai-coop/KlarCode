@@ -24,7 +24,18 @@ export default function CatalogDiffView() {
 
   // Lade verfügbare Jahre beim ersten Rendern
   React.useEffect(() => {
-    getAvailableYears().then(setYears).catch(() => setYears([]));
+    getAvailableYears()
+      .then(availableYears => {
+        setYears(availableYears);
+        // Set default years: latest and previous
+        if (availableYears && availableYears.length >= 2) {
+          // Sort years descending
+          const sortedYears = [...availableYears].sort((a, b) => b.localeCompare(a));
+          setYearNew(sortedYears[0]); // Latest year
+          setYearOld(sortedYears[1]); // Second latest year
+        }
+      })
+      .catch(() => setYears([]));
   }, []);
 
   const handleCompare = async () => {
