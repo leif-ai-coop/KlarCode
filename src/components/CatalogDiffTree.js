@@ -921,13 +921,16 @@ export default function CatalogDiffTree({
       return '';
     };
     
-    // Bestimme den Kapitel‑Key direkt aus der ID (Format: "kapitel-A" oder "kapitel-5")
-    const kapitelKey = kapitel.id.split('-')[1];
-    if (!kapitelKey) {
-      console.error(`Konnte Kapitel‑Key nicht aus kapitel.id extrahieren: ${kapitel.id}`);
+    // Filtere alle Codes, die zu diesem Kapitel gehören
+    // Extrahiere die Kapitel-ID aus dem Titel, da dieser Format "Kapitel X" oder "X - Name" hat
+    const kapitelTitleMatch = kapitel.title.match(/^(?:Kapitel\s+)?(\d|[A-Z])/);
+    if (!kapitelTitleMatch) {
+      console.error(`Konnte keine Kapitel-ID aus dem Titel extrahieren: "${kapitel.title}"`);
       return {};
     }
-    console.log(`Kapitel‑Key für Gruppenextraktion: ${kapitelKey}`);
+    
+    const kapitelKey = kapitelTitleMatch[1];
+    console.log(`Extrahierte Kapitel-ID aus Titel "${kapitel.title}": "${kapitelKey}"`);
     
     // Filtere Codes, die mit der Kapitel-ID beginnen
     const codesForKapitel = diffsOnly.filter(item => {
@@ -1100,7 +1103,7 @@ export default function CatalogDiffTree({
           )}
           {codes && codes.length === 0 && (
             <Box sx={{ p: 2, textAlign: 'center' }}>
-              <Typography variant="body2" color="text.secondary">Keine Dreisteller gefunden</Typography>
+              <Typography variant="body2" color="text.secondary">Keine Codes gefunden</Typography>
             </Box>
           )}
           {codes && codes.map(renderCode)}
@@ -1157,7 +1160,7 @@ export default function CatalogDiffTree({
           )}
           {groups && Object.keys(groups).length === 0 && (
             <Box sx={{ p: 2, textAlign: 'center' }}>
-              <Typography variant="body2" color="text.secondary">Keine Dreisteller gefunden</Typography>
+              <Typography variant="body2" color="text.secondary">Keine Gruppen gefunden</Typography>
             </Box>
           )}
           {groups && Object.values(groups)
