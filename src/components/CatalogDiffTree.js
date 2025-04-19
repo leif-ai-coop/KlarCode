@@ -97,6 +97,58 @@ export default function CatalogDiffTree({ diffTree }) {
     return diffTree[0]?.type || 'icd';
   }, [diffTree]);
 
+  // Dreistellerbeschreibungen aus dem Diff-Baum extrahieren
+  const dreistellerDescriptions = useMemo(() => {
+    if (!diffTree || diffTree.length === 0) return {};
+    
+    console.log('Suche nach Dreisteller-Daten im diffTree...');
+    
+    // Map für Dreisteller-Beschreibungen erstellen
+    const descriptions = {};
+    let foundCount = 0;
+    
+    // Durchlaufe den gesamten diffTree und suche nach Dreisteller-Informationen
+    diffTree.forEach(item => {
+      if (item.oldCode?.dreisteller) {
+        const dreistellerCode = item.code.match(/^(\d-\d{2})/)?.[0];
+        if (dreistellerCode && item.oldCode.dreisteller.description) {
+          descriptions[dreistellerCode] = item.oldCode.dreisteller.description;
+          foundCount++;
+          if (foundCount <= 5) {
+            console.log(`Dreisteller gefunden (Alt): ${dreistellerCode} -> "${item.oldCode.dreisteller.description}"`);
+          }
+        }
+      }
+      
+      if (item.newCode?.dreisteller) {
+        const dreistellerCode = item.code.match(/^(\d-\d{2})/)?.[0];
+        if (dreistellerCode && item.newCode.dreisteller.description) {
+          descriptions[dreistellerCode] = item.newCode.dreisteller.description;
+          foundCount++;
+          if (foundCount <= 5) {
+            console.log(`Dreisteller gefunden (Neu): ${dreistellerCode} -> "${item.newCode.dreisteller.description}"`);
+          }
+        }
+      }
+    });
+    
+    console.log(`Insgesamt ${Object.keys(descriptions).length} Dreisteller-Beschreibungen gefunden.`);
+    if (Object.keys(descriptions).length > 0) {
+      console.log('Beispiel-Dreisteller:', Object.entries(descriptions).slice(0, 3));
+    } else {
+      console.log('WARNUNG: Keine Dreisteller-Beschreibungen gefunden!');
+      console.log('Prüfe Struktur des ersten diffTree-Eintrags:', diffTree[0]);
+      if (diffTree[0]?.oldCode) {
+        console.log('oldCode Struktur:', Object.keys(diffTree[0].oldCode));
+      }
+      if (diffTree[0]?.newCode) {
+        console.log('newCode Struktur:', Object.keys(diffTree[0].newCode));
+      }
+    }
+    
+    return descriptions;
+  }, [diffTree]);
+
   // Überprüfen, ob es aufeinanderfolgende Jahre sind (für Umsteiger)
   const areConsecutiveYears = useMemo(() => {
     if (!diffTree || diffTree.length === 0) return false;
@@ -238,6 +290,31 @@ export default function CatalogDiffTree({ diffTree }) {
       }
     };
 
+    // Funktion zum Abrufen der Dreisteller-Beschreibung
+    const getDreistellerDescription = (group) => {
+      if (!isICD && dreistellerDescriptions[group]) {
+        return dreistellerDescriptions[group];
+      }
+      
+      // Fallback: Suche nach der Beschreibung in den Codes
+      for (const item of diffsOnly) {
+        if (item.code.startsWith(group)) {
+          // Direkter Zugriff auf dreisteller-Objekt im Code
+          if (item.oldCode?.dreisteller?.description) {
+            console.log(`Dreisteller-Beschreibung gefunden für ${group}:`, item.oldCode.dreisteller.description);
+            return item.oldCode.dreisteller.description;
+          }
+          if (item.newCode?.dreisteller?.description) {
+            console.log(`Dreisteller-Beschreibung gefunden für ${group}:`, item.newCode.dreisteller.description);
+            return item.newCode.dreisteller.description;
+          }
+        }
+      }
+      
+      // Wenn keine Beschreibung gefunden wurde, gib nur den Bereichscode zurück
+      return '';
+    };
+
     // Kapitel-Titel basierend auf dem Katalogtyp
     const getKapitelTitle = (key) => {
       if (isICD) {
@@ -286,9 +363,15 @@ export default function CatalogDiffTree({ diffTree }) {
       
       // Gruppe erstellen falls noch nicht vorhanden
       if (!groupMap[group]) {
+        // Dreisteller-Beschreibung holen wenn verfügbar
+        const dreistellerDesc = getDreistellerDescription(group);
+        const groupTitle = isICD ? 
+          `Gruppe ${group}` : 
+          dreistellerDesc ? `${group} ${dreistellerDesc}` : `${group}`;
+
         groupMap[group] = {
           id: `group-${group}`,
-          title: `Gruppe ${group}`,
+          title: groupTitle,
           children: [],
           stats: { 
             added: { total: 0, new: 0, replacement: 0 },
@@ -361,7 +444,7 @@ export default function CatalogDiffTree({ diffTree }) {
       // Für ICD: Alphabetische Sortierung (A, B, C, ...)
       return a.title.localeCompare(b.title);
     });
-  }, [diffsOnly, catalogType, selectedCode]);
+  }, [diffsOnly, catalogType, dreistellerDescriptions, selectedCode]);
 
   // Node expandieren/kollabieren
   const toggleNode = (nodeId) => {
@@ -770,6 +853,32 @@ export default function CatalogDiffTree({ diffTree }) {
         return simpleMatch ? `${simpleMatch[1]}-00` : null;
       }
     };
+    
+    // Funktion zum Abrufen der Dreisteller-Beschreibung
+    const getDreistellerDescription = (group) => {
+      if (!isICD && dreistellerDescriptions[group]) {
+        return dreistellerDescriptions[group];
+      }
+      
+      // Fallback: Suche nach der Beschreibung in den Codes
+      for (const item of diffsOnly) {
+        if (item.code.startsWith(group)) {
+          // Direkter Zugriff auf dreisteller-Objekt im Code
+          if (item.oldCode?.dreisteller?.description) {
+            console.log(`Dreisteller-Beschreibung gefunden für ${group}:`, item.oldCode.dreisteller.description);
+            return item.oldCode.dreisteller.description;
+          }
+          if (item.newCode?.dreisteller?.description) {
+            console.log(`Dreisteller-Beschreibung gefunden für ${group}:`, item.newCode.dreisteller.description);
+            return item.newCode.dreisteller.description;
+          }
+        }
+      }
+      
+      // Wenn keine Beschreibung gefunden wurde, gib nur den Bereichscode zurück
+      return '';
+    };
+    
     // Filtere alle Codes, die zu diesem Kapitel gehören
     const kapitelKey = kapitel.title.match(/^(\d|[A-Z])/)[0];
     const codesForKapitel = diffsOnly.filter(item => {
@@ -779,15 +888,22 @@ export default function CatalogDiffTree({ diffTree }) {
         return item.code.startsWith(kapitelKey);
       }
     });
+    
     // Baue Gruppenstruktur
     const groupMap = {};
     codesForKapitel.forEach(item => {
       const group = extractGroup(item.code);
       if (!group) return;
       if (!groupMap[group]) {
+        // Dreisteller-Beschreibung holen wenn verfügbar
+        const dreistellerDesc = getDreistellerDescription(group);
+        const groupTitle = isICD ? 
+          `Gruppe ${group}` : 
+          dreistellerDesc ? `${group} ${dreistellerDesc}` : `${group}`;
+          
         groupMap[group] = {
           id: `group-${group}`,
-          title: `Gruppe ${group}`,
+          title: groupTitle,
           children: [],
           stats: { added: { total: 0, new: 0, replacement: 0 }, removed: { total: 0, deprecated: 0, redirected: 0 }, changed: 0, total: 0, itemCount: 0 }
         };
@@ -808,7 +924,7 @@ export default function CatalogDiffTree({ diffTree }) {
       groupMap[group].stats.total++;
     });
     return groupMap;
-  }, [diffsOnly, catalogType]);
+  }, [diffsOnly, catalogType, dreistellerDescriptions]);
 
   // Hilfsfunktion: Extrahiere Codes für eine Gruppe
   const extractCodesForGroup = useCallback((group) => {

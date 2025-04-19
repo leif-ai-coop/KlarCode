@@ -17,6 +17,7 @@ export function diffCatalogs({ oldCatalog, newCatalog, type, migrationData = nul
   
   // Gemeinsame Variablen für beide Katalogtypen
   let oldCodes, newCodes;
+  let oldDreisteller, newDreisteller;
   
   if (type === 'icd') {
     oldCodes = oldCatalog.codes || {};
@@ -26,6 +27,19 @@ export function diffCatalogs({ oldCatalog, newCatalog, type, migrationData = nul
     // Detaillierte Prüfung aller Eigenschaften im OPS-Katalog
     console.log('OPS Katalog-Struktur (Alt):', Object.keys(oldCatalog));
     console.log('OPS Katalog-Struktur (Neu):', Object.keys(newCatalog));
+    
+    // Dreisteller-Daten für OPS extrahieren
+    oldDreisteller = oldCatalog.dreisteller || {};
+    newDreisteller = newCatalog.dreisteller || {};
+    
+    console.log('OPS Dreisteller Anzahl (Alt):', Object.keys(oldDreisteller).length);
+    console.log('OPS Dreisteller Anzahl (Neu):', Object.keys(newDreisteller).length);
+    
+    // Dreisteller-Beispiele ausgeben
+    if (Object.keys(oldDreisteller).length > 0) {
+      const dreistellerBeispiel = Object.entries(oldDreisteller)[0];
+      console.log('OPS Dreisteller Beispiel (Alt):', dreistellerBeispiel);
+    }
     
     // Prüfe erst dreisteller/dreitellerMap
     if (oldCatalog.dreisteller) {
@@ -167,6 +181,52 @@ export function diffCatalogs({ oldCatalog, newCatalog, type, migrationData = nul
   // Überprüfe die Maps
   console.log(`Map-Größen: Alt=${Object.keys(oldCodeMap).length}, Neu=${Object.keys(newCodeMap).length}`);
 
+  // Hilfsfunktion: Finde den Dreisteller für einen Code
+  const findDreistellerForCode = (code, dreistellerMap) => {
+    if (!code || !dreistellerMap || Object.keys(dreistellerMap).length === 0) return null;
+    
+    // Extrahiere den Dreisteller-Teil (z.B. "1-20" aus "1-202")
+    const match = code.match(/^(\d-\d{2})/);
+    if (!match) return null;
+    
+    const dreistellerCode = match[1];
+    
+    console.log(`Suche Dreisteller für Code ${code}, Extrahierter Dreisteller-Code: ${dreistellerCode}`);
+    
+    // Dreisteller direkt aus der Map holen
+    if (dreistellerMap[dreistellerCode]) {
+      console.log(`  ✓ Dreisteller gefunden für ${dreistellerCode}:`, dreistellerMap[dreistellerCode]);
+      return {
+        code: dreistellerCode,
+        description: dreistellerMap[dreistellerCode].description || ''
+      };
+    }
+    
+    // Fallback: Suche auch mit Großbuchstaben
+    const upperDreistellerCode = dreistellerCode.toUpperCase();
+    if (dreistellerMap[upperDreistellerCode]) {
+      console.log(`  ✓ Dreisteller gefunden (Großbuchstaben) für ${upperDreistellerCode}:`, dreistellerMap[upperDreistellerCode]);
+      return {
+        code: upperDreistellerCode,
+        description: dreistellerMap[upperDreistellerCode].description || ''
+      };
+    }
+    
+    // Zusätzlicher Fallback: Durchsuche die Map nach dem Code
+    for (const key in dreistellerMap) {
+      if (key === dreistellerCode || key.toUpperCase() === upperDreistellerCode) {
+        console.log(`  ✓ Dreisteller durch Durchsuchen gefunden für ${dreistellerCode}:`, dreistellerMap[key]);
+        return {
+          code: key,
+          description: dreistellerMap[key].description || ''
+        };
+      }
+    }
+    
+    console.log(`  ✗ Kein Dreisteller gefunden für ${dreistellerCode}`);
+    return null;
+  };
+
   // Diff auf Code-Ebene (mit Berücksichtigung der Umsteiger)
   const codeDiffs = allCodeKeys.map(codeKey => {
     const oldCode = oldCodeMap[codeKey];
@@ -186,6 +246,19 @@ export function diffCatalogs({ oldCatalog, newCatalog, type, migrationData = nul
     // ICD-spezifische Umsteiger-Informationen
     let autoForward = undefined;
     let autoBackward = undefined;
+    
+    // Dreisteller-Informationen hinzufügen
+    let oldDreistellerInfo = null;
+    let newDreistellerInfo = null;
+    
+    if (type === 'ops') {
+      if (oldCode) {
+        oldDreistellerInfo = findDreistellerForCode(codeKey, oldDreisteller);
+      }
+      if (newCode) {
+        newDreistellerInfo = findDreistellerForCode(codeKey, newDreisteller);
+      }
+    }
     
     if (!oldCode) {
       codeStatus = 'added';
@@ -271,13 +344,37 @@ export function diffCatalogs({ oldCatalog, newCatalog, type, migrationData = nul
       }
     }
     
+    // Dreisteller-Informationen ins oldCode/newCode Objekt einbetten, falls nicht schon vorhanden
+    let oldCodeWithDreisteller = oldCode;
+    let newCodeWithDreisteller = newCode;
+    
+    if (oldCode && type === 'ops' && oldDreistellerInfo) {
+      oldCodeWithDreisteller = {
+        ...oldCode,
+        dreisteller: {
+          code: oldDreistellerInfo.code || '',
+          description: oldDreistellerInfo.description || ''
+        }
+      };
+    }
+    
+    if (newCode && type === 'ops' && newDreistellerInfo) {
+      newCodeWithDreisteller = {
+        ...newCode,
+        dreisteller: {
+          code: newDreistellerInfo.code || '',
+          description: newDreistellerInfo.description || ''
+        }
+      };
+    }
+    
     return {
       code: codeKey,
       type,
       status: codeStatus,
       subStatus,
-      oldCode,
-      newCode,
+      oldCode: oldCodeWithDreisteller,
+      newCode: newCodeWithDreisteller,
       diffDetails,
       migrationTarget,
       migrationSource,
