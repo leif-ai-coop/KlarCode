@@ -138,16 +138,22 @@ export const parseICDGroups = (content) => {
 
   lines.forEach(line => {
     const parts = line.split(';');
-    if (parts.length >= 3) {
+    if (parts.length >= 4) {
       // Format: A00;A09;01;Infektiöse Darmkrankheiten
       const startCode = parts[0];
       const endCode = parts[1];
+      const chapterId = parts[2]; // third column contains the chapter number (e.g., "01")
       const description = parts[3];
 
       groupsMap[`${startCode}-${endCode}`] = {
+        // original fields
         start: startCode,
         end: endCode,
-        description
+        description,
+        // aliases / additional data expected by other components
+        rangeStart: startCode,
+        rangeEnd: endCode,
+        chapter: chapterId
       };
     }
   });

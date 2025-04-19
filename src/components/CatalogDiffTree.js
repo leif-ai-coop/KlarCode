@@ -84,72 +84,65 @@ const CodeAccordion = React.memo(function CodeAccordion({ item, expanded, onTogg
   );
 });
 
-export default function CatalogDiffTree({ diffTree }) {
-  // Expandierte Nodes verwalten
+export default function CatalogDiffTree({
+  diffTree,
+  catalogType,
+  icdChapters,
+  icdGroups,
+  oldYear,
+  newYear
+}) {
   const [expandedNodes, setExpandedNodes] = useState({});
-  
-  // Falls ein Code angeklickt wird, um zu seinem Migrations-Ziel zu springen
   const [selectedCode, setSelectedCode] = useState(null);
-  
-  // Katalog-Typ aus dem ersten Diff-Element bestimmen
-  const catalogType = useMemo(() => {
-    if (!diffTree || diffTree.length === 0) return 'icd';
-    return diffTree[0]?.type || 'icd';
-  }, [diffTree]);
 
-  // Dreistellerbeschreibungen aus dem Diff-Baum extrahieren
+  // Log props on render/update
+  React.useEffect(() => {
+    console.log("CatalogDiffTree Props Check:");
+    console.log("  icdChapters:", icdChapters);
+    console.log("  icdGroups:", icdGroups);
+    console.log("  catalogType:", catalogType);
+  }, [icdChapters, icdGroups, catalogType]);
+
+  const areConsecutiveYears = useMemo(() => {
+    return parseInt(newYear) === parseInt(oldYear) + 1;
+  }, [oldYear, newYear]);
+
+  // Restore calculation of Dreisteller descriptions from diffTree (for OPS)
   const dreistellerDescriptions = useMemo(() => {
-    if (!diffTree || diffTree.length === 0) return {};
+    if (!diffTree || diffTree.length === 0 || catalogType !== 'ops') return {};
     
     console.log('Suche nach Dreisteller-Daten im diffTree...');
     
-    // Map für Dreisteller-Beschreibungen erstellen
     const descriptions = {};
     let foundCount = 0;
     
-    // Durchlaufe den gesamten diffTree und suche nach Dreisteller-Informationen
     diffTree.forEach(item => {
-      if (item.oldCode?.dreisteller) {
-        const dreistellerCode = item.code.match(/^(\d-\d{2})/)?.[0];
-        if (dreistellerCode && item.oldCode.dreisteller.description) {
-          descriptions[dreistellerCode] = item.oldCode.dreisteller.description;
-          foundCount++;
-          if (foundCount <= 5) {
-            console.log(`Dreisteller gefunden (Alt): ${dreistellerCode} -> "${item.oldCode.dreisteller.description}"`);
+      // Check oldCode
+      if (item.oldCode?.dreisteller?.description) {
+          // Try to extract the dreisteller code key (e.g., 1-23) from the item's code
+          const dreistellerCodeKey = item.code.match(/^(\d-\d{2})/)?.[0];
+          if (dreistellerCodeKey && !descriptions[dreistellerCodeKey]) { // Prefer new if available
+              descriptions[dreistellerCodeKey] = item.oldCode.dreisteller.description;
+              foundCount++;
+              // console.log(`Dreisteller found (Old): ${dreistellerCodeKey} -> "${item.oldCode.dreisteller.description}"`);
           }
-        }
       }
-      
-      if (item.newCode?.dreisteller) {
-        const dreistellerCode = item.code.match(/^(\d-\d{2})/)?.[0];
-        if (dreistellerCode && item.newCode.dreisteller.description) {
-          descriptions[dreistellerCode] = item.newCode.dreisteller.description;
-          foundCount++;
-          if (foundCount <= 5) {
-            console.log(`Dreisteller gefunden (Neu): ${dreistellerCode} -> "${item.newCode.dreisteller.description}"`);
+      // Check newCode (potentially overwriting old)
+      if (item.newCode?.dreisteller?.description) {
+          const dreistellerCodeKey = item.code.match(/^(\d-\d{2})/)?.[0];
+          if (dreistellerCodeKey) {
+              descriptions[dreistellerCodeKey] = item.newCode.dreisteller.description;
+              foundCount++;
+              // console.log(`Dreisteller found (New): ${dreistellerCodeKey} -> "${item.newCode.dreisteller.description}"`);
           }
-        }
       }
     });
     
     console.log(`Insgesamt ${Object.keys(descriptions).length} Dreisteller-Beschreibungen gefunden.`);
-    if (Object.keys(descriptions).length > 0) {
-      console.log('Beispiel-Dreisteller:', Object.entries(descriptions).slice(0, 3));
-    } else {
-      console.log('WARNUNG: Keine Dreisteller-Beschreibungen gefunden!');
-      console.log('Prüfe Struktur des ersten diffTree-Eintrags:', diffTree[0]);
-      if (diffTree[0]?.oldCode) {
-        console.log('oldCode Struktur:', Object.keys(diffTree[0].oldCode));
-      }
-      if (diffTree[0]?.newCode) {
-        console.log('newCode Struktur:', Object.keys(diffTree[0].newCode));
-      }
-    }
-    
     return descriptions;
-  }, [diffTree]);
+  }, [diffTree, catalogType]);
 
-  // ICD-Gruppenbeschreibungen extrahieren (z.B. für A49)
+  // Restore calculation of ICD Group descriptions (e.g., A49 -> desc) from diffTree
   const icdGroupDescriptions = useMemo(() => {
     if (!diffTree || diffTree.length === 0 || catalogType !== 'icd') return {};
     
@@ -158,41 +151,23 @@ export default function CatalogDiffTree({ diffTree }) {
     let foundCount = 0;
 
     diffTree.forEach(item => {
-      // Prüfe, ob der Code dem ICD-Gruppenmuster entspricht (z.B. A49)
+      // Check if the code is a potential ICD group code (e.g., A49)
       const groupCodeMatch = item.code.match(/^([A-Z]\d{2})$/);
       if (groupCodeMatch) {
         const groupCode = groupCodeMatch[1];
+        // Prefer new description, fallback to old
         const description = item.newCode?.beschreibung || item.oldCode?.beschreibung;
-        if (description && !descriptions[groupCode]) {
+        if (description && !descriptions[groupCode]) { // Take the first one found
           descriptions[groupCode] = description;
           foundCount++;
-          if (foundCount <= 5) {
-            console.log(`ICD Gruppe gefunden: ${groupCode} -> "${description}"`);
-          }
+          // console.log(`ICD Gruppe gefunden: ${groupCode} -> "${description}"`);
         }
       }
     });
 
     console.log(`Insgesamt ${Object.keys(descriptions).length} ICD-Gruppenbeschreibungen gefunden.`);
-    if (Object.keys(descriptions).length === 0) {
-        console.warn('Keine ICD-Gruppenbeschreibungen gefunden. Überprüfe die Code-Struktur in diffTree.');
-    }
     return descriptions;
   }, [diffTree, catalogType]);
-
-  // Überprüfen, ob es aufeinanderfolgende Jahre sind (für Umsteiger)
-  const areConsecutiveYears = useMemo(() => {
-    if (!diffTree || diffTree.length === 0) return false;
-    
-    // Wir schauen auf das erste Element und extrahieren die Jahre aus den oldYear/newYear
-    const firstItem = diffTree[0];
-    if (!firstItem || !firstItem.oldYear || !firstItem.newYear) return false;
-    
-    const oldYear = parseInt(firstItem.oldYear);
-    const newYear = parseInt(firstItem.newYear);
-    
-    return !isNaN(oldYear) && !isNaN(newYear) && newYear - oldYear === 1;
-  }, [diffTree]);
 
   // Filtere nur die Einträge mit Status != 'unchanged'
   const diffsOnly = useMemo(() => {
@@ -267,7 +242,7 @@ export default function CatalogDiffTree({ diffTree }) {
     }
   };
 
-  // Generiere Baumstruktur basierend auf Katalogtyp
+  // Baumstruktur aufbereiten
   const treeData = useMemo(() => {
     // Die Kapitel- und Gruppeneinteilung ist je nach Katalogtyp unterschiedlich
     const isICD = catalogType === 'icd';
@@ -323,34 +298,68 @@ export default function CatalogDiffTree({ diffTree }) {
 
     // Funktion zum Abrufen der Dreisteller-Beschreibung
     const getDreistellerDescription = (group) => {
-      if (!isICD && dreistellerDescriptions[group]) {
+      // Use the internally calculated dreistellerDescriptions map
+      if (!isICD && dreistellerDescriptions[group]) { 
         return dreistellerDescriptions[group];
       }
       
-      // Fallback: Suche nach der Beschreibung in den Codes
-      for (const item of diffsOnly) {
-        if (item.code.startsWith(group)) {
-          // Direkter Zugriff auf dreisteller-Objekt im Code
-          if (item.oldCode?.dreisteller?.description) {
-            console.log(`Dreisteller-Beschreibung gefunden für ${group}:`, item.oldCode.dreisteller.description);
-            return item.oldCode.dreisteller.description;
-          }
-          if (item.newCode?.dreisteller?.description) {
-            console.log(`Dreisteller-Beschreibung gefunden für ${group}:`, item.newCode.dreisteller.description);
-            return item.newCode.dreisteller.description;
-          }
-        }
-      }
+      // Fallback: Suche nach der Beschreibung in den Codes (Keep this? Seems redundant now)
+      // Let's comment out the fallback search for now, rely on the calculated map.
+      // for (const item of diffsOnly) {
+      //   if (item.code.startsWith(group)) {
+      //     if (item.oldCode?.dreisteller?.description) {
+      //       console.log(`Dreisteller-Beschreibung gefunden für ${group}:`, item.oldCode.dreisteller.description);
+      //       return item.oldCode.dreisteller.description;
+      //     }
+      //     if (item.newCode?.dreisteller?.description) {
+      //       console.log(`Dreisteller-Beschreibung gefunden für ${group}:`, item.newCode.dreisteller.description);
+      //       return item.newCode.dreisteller.description;
+      //     }
+      //   }
+      // }
       
-      // Wenn keine Beschreibung gefunden wurde, gib nur den Bereichscode zurück
-      return '';
+      return ''; // Return empty if not in the map
+    };
+
+    // Helper function to find chapter number for an ICD letter key
+    const getIcdChapterNumberFromLetter = (letterKey) => {
+      // Each entry looks like { start: "A00", end: "A09", chapter: "01", ... }
+      // We treat start / rangeStart aliases equally and do a case‑insensitive match on the first letter.
+      const groupValue = Object.values(icdGroups).find(groupData => {
+        if (typeof groupData !== 'object' || !groupData) return false;
+        const rangeStart = groupData.rangeStart || groupData.start;
+        return typeof rangeStart === 'string' && rangeStart.toUpperCase().startsWith(letterKey.toUpperCase());
+      });
+      
+      // If a matching group object is found, return its chapter property
+      if (groupValue && typeof groupValue.chapter === 'string') {
+        const chapterNumber = groupValue.chapter;
+        return chapterNumber;
+      } else {
+        // console.warn(`  No matching group object or chapter property found for letter: ${letterKey}`);
+      }
+      return null; // Not found or invalid structure
     };
 
     // Kapitel-Titel basierend auf dem Katalogtyp
     const getKapitelTitle = (key) => {
-      if (isICD) {
-        // ICD Kapitel-Konvention
-        return `Kapitel ${key}`;
+      if (isICD) { // Use prop catalogType via isICD
+        // ICD Kapitel-Konvention - Revised
+        if (!icdChapters || !icdGroups) {
+          // console.warn(`Missing icdChapters or icdGroups for key ${key}`);
+          return `Kapitel ${key} (Daten fehlen)`; // More specific fallback
+        }
+        const chapterNumber = getIcdChapterNumberFromLetter(key);
+        if (chapterNumber && icdChapters[chapterNumber]) {
+          const chapterEntry = icdChapters[chapterNumber];
+          const chapterDescription = typeof chapterEntry === 'string' ? chapterEntry : chapterEntry?.description || '';
+          // Remove possible leading zeros from chapter number for nicer display ("01" -> "1")
+          const chapterDisplayNum = String(parseInt(chapterNumber, 10));
+          return `Kapitel ${chapterDisplayNum} - ${chapterDescription}`;
+        } else {
+          // console.warn(`  Chapter number (${chapterNumber}) or description not found in icdChapters for key ${key}. Available chapter keys:`, Object.keys(icdChapters)); // Log failure and available keys
+          return `Kapitel ${key} (Unbekanntes Kapitel)`;
+        }
       } else {
         // OPS Kapitel-Konvention
         const opsKapitelTitles = {
@@ -371,16 +380,17 @@ export default function CatalogDiffTree({ diffTree }) {
 
     // Erst alle Codes nach Kapitel und Gruppe strukturieren
     diffsOnly.forEach(item => {
-      const kapitel = extractKapitel(item.code);
+      const kapitelKey = extractKapitel(item.code);
       const group = extractGroup(item.code);
       
-      if (!kapitel) return;
+      if (!kapitelKey) return;
 
       // Kapitel erstellen falls noch nicht vorhanden
-      if (!kapitelMap[kapitel]) {
-        kapitelMap[kapitel] = {
-          id: `kapitel-${kapitel}`,
-          title: getKapitelTitle(kapitel),
+      if (!kapitelMap[kapitelKey]) {
+        const title = getKapitelTitle(kapitelKey);
+        kapitelMap[kapitelKey] = {
+          id: `kapitel-${kapitelKey}`,
+          title: title,
           children: {},
           stats: { 
             added: { total: 0, new: 0, replacement: 0 },
@@ -400,9 +410,9 @@ export default function CatalogDiffTree({ diffTree }) {
         let groupTitle;
         // Für ICD und OPS unterschiedlich formatieren
         if (isICD) {
-          // Bei ICD die Beschreibung aus der neuen Map holen
-          const icdDesc = icdGroupDescriptions[group] || '';
-          groupTitle = icdDesc ? `${group} - ${icdDesc}` : `Gruppe ${group}`; // Fallback auf Gruppe
+          // Bei ICD die Beschreibung aus der internen Map holen
+          const icdDesc = icdGroupDescriptions[group] || ''; // Use internal icdGroupDescriptions
+          groupTitle = icdDesc ? `${group} - ${icdDesc}` : `Gruppe ${group}`; 
         } else {
           // Bei OPS mit Dreisteller-Beschreibung oder nur dem Code
           groupTitle = dreistellerDesc ? `${group} ${dreistellerDesc}` : `${group}`;
@@ -422,7 +432,7 @@ export default function CatalogDiffTree({ diffTree }) {
         };
         
         // Gruppe zum Kapitel hinzufügen
-        kapitelMap[kapitel].children[group] = groupMap[group];
+        kapitelMap[kapitelKey].children[group] = groupMap[group];
       }
       
       // Code zur Gruppe hinzufügen
@@ -430,7 +440,7 @@ export default function CatalogDiffTree({ diffTree }) {
       
       // Statistiken aktualisieren
       groupMap[group].stats.itemCount++;
-      kapitelMap[kapitel].stats.itemCount++;
+      kapitelMap[kapitelKey].stats.itemCount++;
       
       // Only count as changes if the status is not 'unchanged'
       if (item.status === 'unchanged') {
@@ -440,36 +450,36 @@ export default function CatalogDiffTree({ diffTree }) {
       
       if (item.status === 'added') {
         groupMap[group].stats.added.total++;
-        kapitelMap[kapitel].stats.added.total++;
+        kapitelMap[kapitelKey].stats.added.total++;
         
         if (item.subStatus === 'new') {
           groupMap[group].stats.added.new++;
-          kapitelMap[kapitel].stats.added.new++;
+          kapitelMap[kapitelKey].stats.added.new++;
         } else if (item.subStatus === 'replacement') {
           groupMap[group].stats.added.replacement++;
-          kapitelMap[kapitel].stats.added.replacement++;
+          kapitelMap[kapitelKey].stats.added.replacement++;
         }
       }
       else if (item.status === 'removed') {
         groupMap[group].stats.removed.total++;
-        kapitelMap[kapitel].stats.removed.total++;
+        kapitelMap[kapitelKey].stats.removed.total++;
         
         if (item.subStatus === 'deprecated') {
           groupMap[group].stats.removed.deprecated++;
-          kapitelMap[kapitel].stats.removed.deprecated++;
+          kapitelMap[kapitelKey].stats.removed.deprecated++;
         } else if (item.subStatus === 'redirected') {
           groupMap[group].stats.removed.redirected++;
-          kapitelMap[kapitel].stats.removed.redirected++;
+          kapitelMap[kapitelKey].stats.removed.redirected++;
         }
       }
       else if (item.status === 'changed') {
         groupMap[group].stats.changed++;
-        kapitelMap[kapitel].stats.changed++;
+        kapitelMap[kapitelKey].stats.changed++;
       }
       
       // Only increment total for non-unchanged items
       groupMap[group].stats.total++;
-      kapitelMap[kapitel].stats.total++;
+      kapitelMap[kapitelKey].stats.total++;
     });
 
     // Sortierte Kapitel-Liste erzeugen
@@ -481,9 +491,11 @@ export default function CatalogDiffTree({ diffTree }) {
         return parseInt(numA) - parseInt(numB);
       }
       // Für ICD: Alphabetische Sortierung (A, B, C, ...)
-      return a.title.localeCompare(b.title);
+      const keyA = a.id.split('-')[1]; // Extract 'A' from 'kapitel-A'
+      const keyB = b.id.split('-')[1]; // Extract 'B' from 'kapitel-B'
+      return keyA.localeCompare(keyB);
     });
-  }, [diffsOnly, catalogType, dreistellerDescriptions, icdGroupDescriptions, selectedCode]);
+  }, [diffsOnly, catalogType, dreistellerDescriptions, icdGroupDescriptions, selectedCode, icdChapters, icdGroups]);
 
   // Node expandieren/kollabieren
   const toggleNode = (nodeId) => {
@@ -895,23 +907,17 @@ export default function CatalogDiffTree({ diffTree }) {
 
     // Funktion zum Abrufen der Dreisteller-Beschreibung (nur für OPS relevant hier)
     const getDreistellerDescription = (group) => {
-      if (isICD) return ''; // Nicht relevant für ICD in dieser Funktion
+      if (isICD) return ''; 
       
-      if (dreistellerDescriptions[group]) {
+      // Use the internally calculated map
+      if (dreistellerDescriptions[group]) { 
         return dreistellerDescriptions[group];
       }
       
-      // Fallback: Suche in Codes (sollte idealerweise nicht nötig sein)
-      for (const item of diffsOnly) {
-        if (item.code.startsWith(group)) {
-          if (item.oldCode?.dreisteller?.description) {
-            return item.oldCode.dreisteller.description;
-          }
-          if (item.newCode?.dreisteller?.description) {
-            return item.newCode.dreisteller.description;
-          }
-        }
-      }
+      // Fallback: Suche in Codes (commented out as above)
+      // for (const item of diffsOnly) {
+      //   ...
+      // }
       return '';
     };
     
@@ -949,10 +955,10 @@ export default function CatalogDiffTree({ diffTree }) {
         
         let groupTitle;
         // Für ICD und OPS unterschiedlich formatieren
-        if (isICD) {
-          // Bei ICD die Beschreibung aus der neuen Map holen
-          const icdDesc = icdGroupDescriptions[group] || '';
-          groupTitle = icdDesc ? `${group} - ${icdDesc}` : `Gruppe ${group}`; // Fallback auf Gruppe
+        if (isICD) { 
+          // Bei ICD die Beschreibung aus der internen Map holen
+          const icdDesc = icdGroupDescriptions[group] || ''; // Use internal icdGroupDescriptions
+          groupTitle = icdDesc ? `${group} - ${icdDesc}` : `Gruppe ${group}`; 
         } else {
           // Bei OPS mit Dreisteller-Beschreibung oder nur dem Code
           groupTitle = dreistellerDesc ? `${group} ${dreistellerDesc}` : `${group}`;
@@ -1179,9 +1185,9 @@ export default function CatalogDiffTree({ diffTree }) {
   // Render der Statistik
   const renderStats = () => (
     <Box sx={{ mb: 3 }}>
-      <Typography variant="h6" gutterBottom>
+      {/* <Typography variant="h6" gutterBottom>
         Delta-Statistik
-      </Typography>
+      </Typography> */}
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
         <Box sx={{ minWidth: 150 }}>
           <Typography variant="subtitle2" sx={{ color: '#7D9692' }}>Hinzugefügt ({stats.added.total})</Typography>
@@ -1216,7 +1222,7 @@ export default function CatalogDiffTree({ diffTree }) {
         <Typography variant="h6" gutterBottom>
           {catalogType.toUpperCase()} Delta-Ergebnisse
         </Typography>
-        <Typography variant="body2" color="text.secondary">
+        <Typography variant="body2">
           Insgesamt {stats.total} Codes verglichen, davon {stats.totalChanges} mit Unterschieden
         </Typography>
       </Box>

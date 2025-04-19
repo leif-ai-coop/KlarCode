@@ -19,6 +19,8 @@ export default function CatalogDiffView() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [diffTree, setDiffTree] = useState(null);
+  const [icdChapters, setIcdChapters] = useState(null); // Store chapter data
+  const [icdGroups, setIcdGroups] = useState(null);     // Store group data
 
   // Lade verfügbare Jahre beim ersten Rendern
   React.useEffect(() => {
@@ -28,6 +30,8 @@ export default function CatalogDiffView() {
   const handleCompare = async () => {
     setError(null);
     setDiffTree(null);
+    setIcdChapters(null); // Reset chapter data
+    setIcdGroups(null);   // Reset group data
     setLoading(true);
     try {
       let oldData, newData, migrationData = null;
@@ -36,6 +40,8 @@ export default function CatalogDiffView() {
         newData = await loadICDData(yearNew);
         migrationData = await loadICDMigrationData(yearOld, yearNew);
         console.log('ICD-Umsteiger geladen:', migrationData);
+        setIcdChapters(newData.chapters); // Store chapters from new data
+        setIcdGroups(newData.groups);     // Store groups from new data
       } else {
         oldData = await loadOPSData(yearOld);
         newData = await loadOPSData(yearNew);
@@ -43,6 +49,9 @@ export default function CatalogDiffView() {
         // Lade OPS-Umsteiger-Daten (nur für OPS relevant)
         migrationData = await loadOPSMigrationData(yearOld, yearNew);
         console.log('OPS-Umsteiger geladen:', migrationData);
+        // Reset ICD specific data if switching to OPS
+        setIcdChapters(null);
+        setIcdGroups(null);
       }
       
       // Logging hinzufügen
@@ -134,7 +143,17 @@ export default function CatalogDiffView() {
       </Box>
       {loading && <CircularProgress sx={{ my: 3 }} />}
       {error && <Alert severity="error" sx={{ my: 2 }}>{error}</Alert>}
-      {diffTree && <CatalogDiffTree diffTree={diffTree} />}
+      {diffTree && (
+        <CatalogDiffTree 
+          diffTree={diffTree} 
+          catalogType={catalogType} // Pass catalogType
+          icdChapters={icdChapters}   // Pass chapters definitions
+          icdGroups={icdGroups}     // Pass groups definitions
+          // Pass years for context
+          oldYear={yearOld}
+          newYear={yearNew}
+        />
+      )}
     </Box>
   );
 } 
