@@ -1,3 +1,5 @@
+import * as XLSX from 'xlsx';
+
 /**
  * Convert an array of objects to CSV string
  * @param {Array} data - The data to convert
@@ -36,21 +38,43 @@ export const exportToCSV = (data, headers, filename = 'export.csv') => {
 
 /**
  * Export data as Excel file
- * Note: This is a basic implementation using CSV with .xlsx extension
- * For a more robust solution, libraries like xlsx could be used
- * @param {Array} data - The data to export
- * @param {Array} headers - The headers to include
+ * @param {Array} data - The data to export (array of objects)
+ * @param {Array} headers - The headers to include (array of {key: string, label: string})
  * @param {string} filename - The filename to use
  */
 export const exportToExcel = (data, headers, filename = 'export.xlsx') => {
-  // Convert to CSV as a simple approach
-  const csv = convertToCSV(data, headers);
-  
-  // For Excel, use a BOM for UTF-8 encoding support
-  const csvWithBOM = '\uFEFF' + csv;
-  
-  // Use .xlsx extension but it's still CSV content
-  downloadFile(csvWithBOM, filename, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;charset=utf-8');
+  // 1. Map the data to only include the columns defined in headers and use header labels
+  const dataForSheet = data.map(row => {
+    const newRow = {};
+    headers.forEach(header => {
+      newRow[header.label] = row[header.key] || ''; // Use label as key for the sheet
+    });
+    return newRow;
+  });
+
+  // 2. Create a worksheet from the mapped data
+  // headers are automatically inferred from the keys of the first object in dataForSheet
+  const worksheet = XLSX.utils.json_to_sheet(dataForSheet);
+
+  // Optional: Adjust column widths (example)
+  // const colWidths = headers.map(h => ({ wch: Math.max(h.label.length, 15) })); // Set min width
+  // worksheet['!cols'] = colWidths;
+
+  // 3. Create a new workbook
+  const workbook = XLSX.utils.book_new();
+
+  // 4. Add the worksheet to the workbook
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Daten'); // Sheet name 'Daten'
+
+  // 5. Generate the Excel file binary data (type: buffer)
+  const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+
+  // 6. Trigger the download using the helper function
+  downloadFile(
+    excelBuffer, 
+    filename, 
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+  );
 };
 
 /**
