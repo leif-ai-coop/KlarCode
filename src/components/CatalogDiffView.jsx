@@ -97,6 +97,40 @@ export default function CatalogDiffView() {
     }
   };
 
+  // Handler für Katalogtyp-Änderung
+  const handleCatalogChange = (event) => {
+    const newCatalogType = event.target.value;
+    setCatalogType(newCatalogType);
+    // Ergebnisse zurücksetzen, wenn der Typ wechselt
+    setDiffTree(null);
+    setError(null);
+    setIcdChapters(null); // Reset ICD-specific data
+    setIcdGroups(null);
+    // Optional: Jahre auch zurücksetzen? Vorerst nicht.
+  };
+
+  // Handler für Jahr (alt) Änderung
+  const handleYearOldChange = (event) => {
+    const newYear = event.target.value;
+    setYearOld(newYear);
+    // Ergebnisse zurücksetzen
+    setDiffTree(null);
+    setError(null);
+    setIcdChapters(null);
+    setIcdGroups(null);
+  };
+
+  // Handler für Jahr (neu) Änderung
+  const handleYearNewChange = (event) => {
+    const newYear = event.target.value;
+    setYearNew(newYear);
+    // Ergebnisse zurücksetzen
+    setDiffTree(null);
+    setError(null);
+    setIcdChapters(null);
+    setIcdGroups(null);
+  };
+
   return (
     <Box sx={{ mb: 3 }}>
       <Typography variant="h6" gutterBottom>
@@ -109,7 +143,7 @@ export default function CatalogDiffView() {
             labelId="catalog-type-label"
             value={catalogType}
             label="Katalog"
-            onChange={e => setCatalogType(e.target.value)}
+            onChange={handleCatalogChange}
           >
             {CATALOG_TYPES.map(opt => (
               <MenuItem key={opt.value} value={opt.value}>{opt.label}</MenuItem>
@@ -122,7 +156,7 @@ export default function CatalogDiffView() {
             labelId="year-old-label"
             value={yearOld}
             label="Jahr (alt)"
-            onChange={e => setYearOld(e.target.value)}
+            onChange={handleYearOldChange}
           >
             {years.map(y => (
               <MenuItem key={y} value={y}>{y}</MenuItem>
@@ -135,7 +169,7 @@ export default function CatalogDiffView() {
             labelId="year-new-label"
             value={yearNew}
             label="Jahr (neu)"
-            onChange={e => setYearNew(e.target.value)}
+            onChange={handleYearNewChange}
           >
             {years.map(y => (
               <MenuItem key={y} value={y}>{y}</MenuItem>

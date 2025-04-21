@@ -220,6 +220,10 @@ export const parseOPSCodes = (content) => {
           case '1': validityKHG = 'Gültig nach § 17d KHG'; break;
           case '2': validityKHG = 'Gültig nach § 17b und § 17d KHG'; break;
           case '3': validityKHG = 'Nicht gültig nach § 17b und § 17d KHG'; break;
+          default:
+            console.warn(`Unbekannter Gültigkeitswert für KHG in parseOPSCodes: ${parts[12]}`);
+            validityKHG = '-'; // Explizit auf Standardwert setzen
+            break;
         }
       }
       
