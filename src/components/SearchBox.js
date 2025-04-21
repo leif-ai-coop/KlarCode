@@ -39,13 +39,13 @@ const SearchBox = ({
     };
 
     loadYears();
-  }, []);
+  }, [onYearChange, selectedYear]);
 
   useEffect(() => {
     if (inputValue.trim()) {
       onSearch(inputValue);
     }
-  }, [selectedYear]);
+  }, [selectedYear, onSearch, inputValue]);
 
   const handleChange = (e) => {
     setInputValue(e.target.value);

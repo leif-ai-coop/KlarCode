@@ -190,7 +190,7 @@ function App() {
               }}>
                 <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)} sx={{ mb: 2 }}>
                   <Tab label="Suche" />
-                  <Tab label="ICD/OPS-Delta" />
+                  <Tab label="ICD/OPS-Vergleich" />
                 </Tabs>
                 {activeTab === 0 && (
                   <>
