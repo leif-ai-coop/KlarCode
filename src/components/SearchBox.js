@@ -41,18 +41,12 @@ const SearchBox = ({
     loadYears();
   }, [onYearChange, selectedYear]);
 
-  useEffect(() => {
-    if (inputValue.trim()) {
-      onSearch(inputValue);
-    }
-  }, [selectedYear, onSearch, inputValue]);
-
   const handleChange = (e) => {
     setInputValue(e.target.value);
   };
 
   const handleKeyDown = (e) => {
-    if (e.key === 'Enter') {
+    if (e.key === 'Enter' && e.ctrlKey) {
       handleSubmit();
     }
   };
