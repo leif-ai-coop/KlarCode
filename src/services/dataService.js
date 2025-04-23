@@ -745,7 +745,7 @@ export async function loadOPSMigrationData(oldYear, newYear) {
   try {
     // Baue Pfad zur Umsteiger-Datei, die im Format "ops[newYear]syst_umsteiger_[oldYear]_[newYear].txt" vorliegt
     const fileName = `ops${newYear}syst_umsteiger_${oldYear}_${newYear}.txt`;
-    const filePath = `/data/${newYear}/ops/${fileName}`;
+    const filePath = `./data/${newYear}/ops/${fileName}`;
     
     // Lade die Umsteiger-Datei
     const response = await fetch(filePath);
@@ -846,7 +846,7 @@ export async function loadICDMigrationData(oldYear, newYear) {
     
     // TEMPORÄRE FIX: Direkte Zuweisung für 2023, um zu testen, ob es mit dem exakten Namen funktioniert
     if (newYear === '2023') {
-      const baseDir = `/data/${newYear}/icd10/`;
+      const baseDir = `./data/${newYear}/icd10/`;
       const exactFileName = `icd10gm${newYear}syst_umsteiger_${oldYear}_${newYear}_20221206.txt`;
       const exactFilePath = baseDir + exactFileName;
       
@@ -915,7 +915,7 @@ export async function loadICDMigrationData(oldYear, newYear) {
         };
       }
     } else if (newYear === '2024') {
-      const baseDir = `/data/${newYear}/icd10/`;
+      const baseDir = `./data/${newYear}/icd10/`;
       const exactFileName = `icd10gm${newYear}syst_umsteiger_${oldYear}_20221206_${newYear}.txt`;
       const exactFilePath = baseDir + exactFileName;
       
@@ -987,7 +987,7 @@ export async function loadICDMigrationData(oldYear, newYear) {
     
     // Wenn der direkte Weg für 2023 nicht funktioniert hat, weiter mit normalem Ablauf
     // Baue Pfad zur Umsteiger-Datei mit Standardnamen
-    const baseDir = `/data/${newYear}/icd10/`;
+    const baseDir = `./data/${newYear}/icd10/`;
     let fileName = `icd10gm${newYear}syst_umsteiger_${oldYear}_${newYear}.txt`;
     let filePath = baseDir + fileName;
 
