@@ -90,9 +90,10 @@ export default function CatalogDiffTree({
   icdChapters,
   icdGroups,
   oldYear,
-  newYear
+  newYear,
+  expandedNodes,
+  onToggleNode
 }) {
-  const [expandedNodes, setExpandedNodes] = useState({});
   const [selectedCode, setSelectedCode] = useState(null);
 
   // Log props on render/update
@@ -224,10 +225,7 @@ export default function CatalogDiffTree({
       
       // Expandiere alle notwendigen Nodes (hierarchisch durch Kapitel/Gruppen)
       // In diesem Fall nur den Code selbst
-      setExpandedNodes(prev => ({
-        ...prev,
-        [`code-${targetCode}`]: true
-      }));
+      onToggleNode(`code-${targetCode}`);
       
       // Scrolle zur Position
       const element = document.getElementById(`code-${targetCode}`);
@@ -498,14 +496,6 @@ export default function CatalogDiffTree({
     });
   }, [diffsOnly, catalogType, dreistellerDescriptions, icdGroupDescriptions, selectedCode, icdChapters, icdGroups]);
 
-  // Node expandieren/kollabieren
-  const toggleNode = (nodeId) => {
-    setExpandedNodes(prev => ({
-      ...prev,
-      [nodeId]: !prev[nodeId]
-    }));
-  };
-
   // Stil für die verschiedenen Status
   const getStatusStyle = (status) => {
     switch (status) {
@@ -535,7 +525,7 @@ export default function CatalogDiffTree({
   };
 
   // Status-Zusammenfassung als Badges darstellen
-  const renderStatusBadges = (stats) => (
+  const renderStatusBadges = useCallback((stats) => (
     <Box sx={{ display: 'flex', gap: 1, ml: 2 }}>
       {stats.added.total > 0 && (
         <Badge badgeContent={stats.added.total} max={999} sx={{ '& .MuiBadge-badge': { fontSize: '0.7rem', bgcolor: '#7D9692', color: 'white' } }}>
@@ -553,7 +543,7 @@ export default function CatalogDiffTree({
         </Badge>
       )}
     </Box>
-  );
+  ), [STATUS_LABELS]);
 
   // Render der Diff-Details für einen Code
   const renderDiffDetails = (item) => {
@@ -649,8 +639,7 @@ export default function CatalogDiffTree({
       // Spezifischere Status-Information basierend auf subStatus (nur bei konsekutiven Jahren sinnvoll)
       if (isConsecutiveComparison && targetItem.status === 'added' && targetItem.subStatus) {
         statusLabel += ` (${targetItem.subStatus === 'new' ? STATUS_LABELS.new : STATUS_LABELS.replacement})`;
-      }
-      else if (isConsecutiveComparison && targetItem.status === 'removed' && targetItem.subStatus) {
+      } else if (isConsecutiveComparison && targetItem.status === 'removed' && targetItem.subStatus) {
         statusLabel += ` (${targetItem.subStatus === 'deprecated' ? STATUS_LABELS.deprecated : STATUS_LABELS.redirected})`;
       }
       
@@ -890,7 +879,7 @@ export default function CatalogDiffTree({
     <CodeAccordion
       item={item}
       expanded={!!expandedNodes[`code-${item.code}`] || selectedCode === item.code}
-      onToggle={() => toggleNode(`code-${item.code}`)}
+      onToggle={() => onToggleNode(`code-${item.code}`)}
       areConsecutiveYears={areConsecutiveYears}
       renderMigrationInfo={renderMigrationInfo}
       renderDiffDetails={renderDiffDetails}
@@ -901,7 +890,7 @@ export default function CatalogDiffTree({
       selectedCode={selectedCode}
       getCodeDescription={getCodeDescription}
     />
-  ), [expandedNodes, selectedCode, areConsecutiveYears, renderMigrationInfo, renderDiffDetails, getStatusIcon, getStatusStyle, renderSubStatusChip, getCodeDescription, toggleNode]);
+  ), [expandedNodes, selectedCode, areConsecutiveYears, renderMigrationInfo, renderDiffDetails, getStatusIcon, getStatusStyle, renderSubStatusChip, getCodeDescription, onToggleNode]);
 
   // State für Lazy Loading
   const [loadedKapitel, setLoadedKapitel] = useState({}); // { kapitelId: { ...gruppen } }
@@ -1083,39 +1072,32 @@ export default function CatalogDiffTree({
     }
   }, [extractCodesForGroup, loadedGroups, loadingGroup]);
 
-  // Memoized renderGroup
-  const renderGroup = useCallback((group, kapitelId) => {
+  // Group Accordion Component
+  const GroupAccordion = React.memo(function GroupAccordion({ group, kapitelId }) {
     const isExpanded = !!expandedNodes[group.id];
     const isLoading = loadingGroup[group.id];
     const codes = loadedGroups[group.id];
-    
-    console.log(`renderGroup: ${group.id}, Expanded: ${isExpanded}, Loading: ${isLoading}, Codes: ${codes ? codes.length : 'none'}`);
-    
+
+    // Effect to trigger lazy loading
+    React.useEffect(() => {
+      if (isExpanded && !codes && !isLoading) {
+        console.log(`Effect: Laden der Codes für expandierte Gruppe ${group.id}`);
+        handleGroupExpand(group, kapitelId);
+      }
+    }, [isExpanded, codes, isLoading, group, kapitelId]); // Removed handleGroupExpand dependency if it causes issues, re-add if needed
+
+    console.log(`Render GroupAccordion: ${group.id}, Expanded: ${isExpanded}, Loading: ${isLoading}, Codes: ${codes ? codes.length : 'none'}`);
+
     return (
       <Accordion 
         key={group.id}
         expanded={isExpanded}
-        onChange={() => {
-          console.log(`Gruppe Toggle: ${group.id}, aktueller Status: ${expandedNodes[group.id] ? 'expanded' : 'collapsed'}`);
-          toggleNode(group.id);
-          if (!codes && !isLoading && !loadedGroups[group.id]) {
-            console.log(`Laden der Codes für Gruppe ${group.id}`);
-            handleGroupExpand(group, kapitelId);
-          } else {
-            console.log(`Codes für Gruppe ${group.id} bereits geladen oder im Ladevorgang`);
-          }
-        }}
-        sx={{ 
-          ml: 2, 
-          mb: 0.5,
-          '&:before': { display: 'none' },
-          boxShadow: 'none',
-          border: '1px solid rgba(0, 0, 0, 0.12)'
-        }}
+        onChange={() => onToggleNode(group.id)}
+        sx={{ ml: 2, mb: 0.5, '&:before': { display: 'none' }, boxShadow: 'none', border: '1px solid rgba(0, 0, 0, 0.12)' }}
       >
         <AccordionSummary expandIcon={<ExpandMoreIcon />}>
           <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-            {expandedNodes[group.id] ? 
+            {isExpanded ? 
               <FolderOpenIcon fontSize="small" sx={{ mr: 1, color: 'primary.main' }} /> : 
               <FolderIcon fontSize="small" sx={{ mr: 1, color: 'primary.main' }} />
             }
@@ -1144,35 +1126,34 @@ export default function CatalogDiffTree({
         </AccordionDetails>
       </Accordion>
     );
-  }, [expandedNodes, renderCode, toggleNode, loadedGroups, loadingGroup, handleGroupExpand, renderStatusBadges]);
+  });
 
-  // Memoized renderKapitel
-  const renderKapitel = useCallback((kapitel) => {
+  // Kapitel Accordion Component
+  const KapitelAccordion = React.memo(function KapitelAccordion({ kapitel }) {
     const isExpanded = !!expandedNodes[kapitel.id];
     const isLoading = loadingKapitel[kapitel.id];
     const groups = loadedKapitel[kapitel.id];
-    
-    console.log(`renderKapitel: ${kapitel.id}, Expanded: ${isExpanded}, Loading: ${isLoading}, Groups: ${groups ? Object.keys(groups).length : 'none'}`);
-    
+
+    // Effect to trigger lazy loading
+    React.useEffect(() => {
+      if (isExpanded && !groups && !isLoading) {
+        console.log(`Effect: Laden der Gruppen für expandiertes Kapitel ${kapitel.id}`);
+        handleKapitelExpand(kapitel);
+      }
+    }, [isExpanded, groups, isLoading, kapitel]); // Removed handleKapitelExpand dependency if it causes issues
+
+    console.log(`Render KapitelAccordion: ${kapitel.id}, Expanded: ${isExpanded}, Loading: ${isLoading}, Groups: ${groups ? Object.keys(groups).length : 'none'}`);
+
     return (
       <Accordion 
         key={kapitel.id}
         expanded={isExpanded}
-        onChange={() => {
-          console.log(`Kapitel Toggle: ${kapitel.id}, aktueller Status: ${expandedNodes[kapitel.id] ? 'expanded' : 'collapsed'}`);
-          toggleNode(kapitel.id);
-          if (!groups && !isLoading && !loadedKapitel[kapitel.id]) {
-            console.log(`Laden der Gruppen für Kapitel ${kapitel.id}`);
-            handleKapitelExpand(kapitel);
-          } else {
-            console.log(`Gruppen für Kapitel ${kapitel.id} bereits geladen oder im Ladevorgang`);
-          }
-        }}
+        onChange={() => onToggleNode(kapitel.id)}
         sx={{ mb: 1 }}
       >
         <AccordionSummary expandIcon={<ExpandMoreIcon />}>
           <Box sx={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-            {expandedNodes[kapitel.id] ? 
+            {isExpanded ? 
               <FolderOpenIcon fontSize="small" sx={{ mr: 1, color: 'primary.main' }} /> : 
               <FolderIcon fontSize="small" sx={{ mr: 1, color: 'primary.main' }} />
             }
@@ -1199,7 +1180,7 @@ export default function CatalogDiffTree({
           )}
           {groups && Object.values(groups)
             .sort((a, b) => {
-              if (catalogType === 'icd') {
+              if (catalogType === 'icd') { // Use catalogType from parent scope
                 return a.title.localeCompare(b.title);
               } else {
                 const numA = a.title.match(/\d+/)?.[0] || '0';
@@ -1207,11 +1188,11 @@ export default function CatalogDiffTree({
                 return parseInt(numA) - parseInt(numB);
               }
             })
-            .map(group => renderGroup(group, kapitel.id))}
+            .map(group => <GroupAccordion key={group.id} group={group} kapitelId={kapitel.id} />)}
         </AccordionDetails>
       </Accordion>
     );
-  }, [expandedNodes, loadedKapitel, loadingKapitel, handleKapitelExpand, renderGroup, renderStatusBadges, catalogType, toggleNode]);
+  });
 
   // Kapitel-Liste vorbereiten (treeData nur Kapitel)
   const kapitelList = useMemo(() => treeData.map(k => ({ id: k.id, title: k.title, stats: k.stats })), [treeData]);
@@ -1269,7 +1250,9 @@ export default function CatalogDiffTree({
         </Typography>
       ) : (
         <Box>
-          {kapitelList.map(renderKapitel)}
+          {kapitelList.map(kapitel => (
+            <KapitelAccordion key={kapitel.id} kapitel={kapitel} />
+          ))}
         </Box>
       )}
     </Paper>

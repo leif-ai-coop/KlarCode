@@ -20,6 +20,8 @@ import useCodeSearch from './hooks/useCodeSearch';
 import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 import CatalogDiffView from './components/CatalogDiffView';
+import { loadICDData, loadOPSData, getAvailableYears, loadOPSMigrationData, loadICDMigrationData } from './services/dataService';
+import { diffCatalogs } from './utils/catalogDiff';
 
 // Create a theme based on mode (light/dark)
 const getDesignTokens = (mode) => ({
@@ -163,6 +165,118 @@ function App() {
       });
   }, []);
   
+  // STATE FOR COMPARISON VIEW
+  const [diffCatalogType, setDiffCatalogType] = useState('icd');
+  const [diffYearOld, setDiffYearOld] = useState('');
+  const [diffYearNew, setDiffYearNew] = useState('');
+  const [diffYears, setDiffYears] = useState([]);
+  const [diffIsLoading, setDiffIsLoading] = useState(false);
+  const [diffError, setDiffError] = useState(null);
+  const [diffTreeData, setDiffTreeData] = useState(null);
+  const [diffIcdChapters, setDiffIcdChapters] = useState(null);
+  const [diffIcdGroups, setDiffIcdGroups] = useState(null);
+  const [diffExpandedNodes, setDiffExpandedNodes] = useState({}); // Add state for expanded nodes
+
+  // Load available years for diff view
+  React.useEffect(() => {
+    getAvailableYears()
+      .then(availableYears => {
+        setDiffYears(availableYears);
+        if (availableYears && availableYears.length >= 2) {
+          const sortedYears = [...availableYears].sort((a, b) => b.localeCompare(a));
+          setDiffYearNew(sortedYears[0]); 
+          setDiffYearOld(sortedYears[1]); 
+        }
+      })
+      .catch(() => setDiffYears([]));
+  }, []);
+  
+  // HANDLERS FOR COMPARISON VIEW
+  const handleDiffCompare = useCallback(async () => {
+    setDiffError(null);
+    setDiffIcdChapters(null);
+    setDiffIcdGroups(null);
+    setDiffExpandedNodes({}); // Reset expanded nodes on new comparison
+    setDiffIsLoading(true);
+    try {
+      let oldData, newData, migrationData = null;
+      if (diffCatalogType === 'icd') {
+        oldData = await loadICDData(diffYearOld);
+        newData = await loadICDData(diffYearNew);
+        migrationData = await loadICDMigrationData(diffYearOld, diffYearNew);
+        console.log('ICD-Umsteiger geladen:', migrationData);
+        setDiffIcdChapters(newData.chapters); 
+        setDiffIcdGroups(newData.groups);     
+      } else {
+        oldData = await loadOPSData(diffYearOld);
+        newData = await loadOPSData(diffYearNew);
+        migrationData = await loadOPSMigrationData(diffYearOld, diffYearNew);
+        console.log('OPS-Umsteiger geladen:', migrationData);
+        setDiffIcdChapters(null);
+        setDiffIcdGroups(null);
+      }
+      
+      console.log('Vergleich: alt', diffYearOld, 'neu', diffYearNew);
+      console.log('oldData', oldData);
+      console.log('newData', newData);
+      
+      const diff = diffCatalogs({ 
+        oldCatalog: oldData, 
+        newCatalog: newData, 
+        type: diffCatalogType,
+        migrationData,
+        oldYear: diffYearOld,
+        newYear: diffYearNew
+      });
+      setDiffTreeData(diff);
+    } catch (e) {
+      setDiffError(e.message || 'Fehler beim Laden oder Vergleichen der Kataloge.');
+    } finally {
+      setDiffIsLoading(false);
+    }
+  }, [diffCatalogType, diffYearOld, diffYearNew]);
+
+  const handleDiffCatalogChange = useCallback((event) => {
+    const newCatalogType = event.target.value;
+    setDiffCatalogType(newCatalogType);
+    // Clear results and expansion state on type change
+    setDiffTreeData(null);
+    setDiffError(null);
+    setDiffIcdChapters(null);
+    setDiffIcdGroups(null);
+    setDiffExpandedNodes({}); 
+  }, []);
+
+  const handleDiffYearOldChange = useCallback((event) => {
+    const newYear = event.target.value;
+    setDiffYearOld(newYear);
+    // Clear results and expansion state on year change
+    setDiffTreeData(null);
+    setDiffError(null);
+    setDiffIcdChapters(null);
+    setDiffIcdGroups(null);
+    setDiffExpandedNodes({});
+  }, []);
+
+  const handleDiffYearNewChange = useCallback((event) => {
+    const newYear = event.target.value;
+    setDiffYearNew(newYear);
+    // Clear results and expansion state on year change
+    setDiffTreeData(null);
+    setDiffError(null);
+    setDiffIcdChapters(null);
+    setDiffIcdGroups(null);
+    setDiffExpandedNodes({});
+  }, []);
+
+  // Handler to toggle node expansion state
+  const handleToggleDiffNode = useCallback((nodeId) => {
+    setDiffExpandedNodes(prev => ({
+      ...prev,
+      [nodeId]: !prev[nodeId]
+    }));
+  }, []);
+
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
@@ -223,7 +337,23 @@ function App() {
                   </>
                 )}
                 {activeTab === 1 && (
-                  <CatalogDiffView />
+                  <CatalogDiffView 
+                    catalogType={diffCatalogType}
+                    yearOld={diffYearOld}
+                    yearNew={diffYearNew}
+                    years={diffYears}
+                    loading={diffIsLoading}
+                    error={diffError}
+                    diffTree={diffTreeData} 
+                    icdChapters={diffIcdChapters}
+                    icdGroups={diffIcdGroups}
+                    expandedNodes={diffExpandedNodes} // Pass down expanded nodes state
+                    onCompare={handleDiffCompare}
+                    onCatalogChange={handleDiffCatalogChange}
+                    onYearOldChange={handleDiffYearOldChange}
+                    onYearNewChange={handleDiffYearNewChange}
+                    onToggleNode={handleToggleDiffNode} // Pass down node toggle handler
+                  />
                 )}
               </Box>
 
