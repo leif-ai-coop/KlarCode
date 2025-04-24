@@ -101,7 +101,7 @@ const SearchBox = ({
           value={inputValue}
           onChange={handleChange}
           onKeyDown={handleKeyDown}
-          placeholder="Geben Sie ICD/OPS Codes ein (z.B. A20.1 oder a201 bzw. 1-20.2 oder 1202). Mindestens drei Stellen. Suche mit Strg+Enter oder Klick auf 'SUCHEN' auslösen."
+          placeholder="Geben Sie ICD/OPS Codes ein (z.B. A20.1 oder a201 bzw. 1-20.2 oder 1202). Mindestens drei Stellen. Suchen mit Strg+Enter oder Klick auf 'SUCHEN'."
           multiline
           rows={3}
           InputProps={{
