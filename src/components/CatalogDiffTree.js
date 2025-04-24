@@ -104,7 +104,8 @@ export default function CatalogDiffTree({
   }, [icdChapters, icdGroups, catalogType]);
 
   const areConsecutiveYears = useMemo(() => {
-    return parseInt(newYear) === parseInt(oldYear) + 1;
+    // Check if the absolute difference is 1, allowing forward and backward
+    return Math.abs(parseInt(newYear) - parseInt(oldYear)) === 1;
   }, [oldYear, newYear]);
 
   // Restore calculation of Dreisteller descriptions from diffTree (for OPS)
@@ -556,7 +557,11 @@ export default function CatalogDiffTree({
 
   // Render der Diff-Details für einen Code
   const renderDiffDetails = (item) => {
-    if (item.status !== 'changed' || !item.diffDetails || !areConsecutiveYears) return null;
+    // Wenn es keine Änderungen gibt, nichts anzeigen
+    if (item.status !== 'changed') return null;
+    
+    // Wenn keine Detail-Diffs vorhanden sind (sollte bei 'changed' nicht passieren, aber sicher ist sicher)
+    if (!item.diffDetails) return null;
     
     // Mapping für nutzerfreundliche Feldbezeichnungen
     const fieldLabels = {
@@ -614,8 +619,26 @@ export default function CatalogDiffTree({
 
   // Migrationsinformationen für einen Code darstellen (Umsteiger-Info)
   const renderMigrationInfo = (item) => {
-    if (!item.migrationTarget && !item.migrationSource) return null;
-    
+    // Migration info only makes sense for consecutive years
+    const isConsecutiveComparison = Math.abs(parseInt(newYear) - parseInt(oldYear)) === 1;
+    if (!isConsecutiveComparison) return null;
+
+    const isReverseComparison = parseInt(oldYear) > parseInt(newYear);
+
+    // Determine which migration info block(s) to show based on status
+    // Forward block (->) shows where a removed code went (uses migrationTarget)
+    const showForwardBlock = item.status === 'removed';
+    // Backward block (<-) shows where an added code came from (uses migrationSource)
+    const showBackwardBlock = item.status === 'added';
+
+    const forwardMigrationTarget = item.migrationTarget;
+    const backwardMigrationSource = item.migrationSource;
+
+    // Return early if no relevant migration data exists for the conditions determined above
+    if ((showForwardBlock && !forwardMigrationTarget) && (showBackwardBlock && (!backwardMigrationSource || backwardMigrationSource.length === 0))) {
+        return null;
+    }
+
     // Helper to get the status label of a code
     const getCodeStatusLabel = (code) => {
       const targetItem = diffTree.find(item => item.code && item.code.toLowerCase() === code.toLowerCase());
@@ -623,11 +646,11 @@ export default function CatalogDiffTree({
       
       let statusLabel = STATUS_LABELS[targetItem.status] || "Unbekannter Status";
       
-      // Spezifischere Status-Information basierend auf subStatus
-      if (targetItem.status === 'added' && targetItem.subStatus) {
+      // Spezifischere Status-Information basierend auf subStatus (nur bei konsekutiven Jahren sinnvoll)
+      if (isConsecutiveComparison && targetItem.status === 'added' && targetItem.subStatus) {
         statusLabel += ` (${targetItem.subStatus === 'new' ? STATUS_LABELS.new : STATUS_LABELS.replacement})`;
       }
-      else if (targetItem.status === 'removed' && targetItem.subStatus) {
+      else if (isConsecutiveComparison && targetItem.status === 'removed' && targetItem.subStatus) {
         statusLabel += ` (${targetItem.subStatus === 'deprecated' ? STATUS_LABELS.deprecated : STATUS_LABELS.redirected})`;
       }
       
@@ -650,72 +673,66 @@ export default function CatalogDiffTree({
       }
     };
     
-    // Check if an item needs an additional code marker
+    // Check if an item needs an additional code marker (OPS specific logic might exist here)
     const needsAdditionalCode = (codeData) => {
       if (!codeData) return false;
-      
-      // Für OPS: Prüfe auf die Information aus dem Umsteiger-Format
+      // Existing logic for checking additional code requirement...
       if (catalogType === 'ops') {
-        // Zusatzkennzeichen aus dem Umsteiger
-        if (codeData.requiresAdditionalCode === 'J') return true;
-        
-        // Alternativ: Prüfe auch das Feld 'isAdditionalCode' aus den Codedaten
-        return codeData.isAdditionalCode === true;
+        if (codeData.requiresAdditionalCode === 'J') return true; // From migration data
+        return codeData.isAdditionalCode === true; // From code details
       }
-      
       return false;
     };
     
     // Helper to get tooltip info for code
-    const getCodeTooltip = (code, isTarget = false) => {
+    const getCodeTooltip = (code, isTargetContext = false) =>
+    {
       const description = getCodeDescriptionByCode(code);
       const status = getCodeStatusLabel(code);
-      
       let tooltip = `${description} (${status})`;
-      
-      // Für OPS: Zusätzliche Informationen anzeigen
+
+      // Add OPS specific info like Zusatzkennzeichen
       if (catalogType === 'ops') {
-        // Finde Informationen zu Zusatzkennzeichen, falls vorhanden
         const targetItem = diffTree.find(item => item.code && item.code.toLowerCase() === code.toLowerCase());
-        
-        // Prüfe auf Zusatzkennzeichen-Informationen
         if (targetItem) {
-          const needsAdditional = isTarget 
-            ? item.targetRequiresAdditionalCode === 'J'
-            : (item.sourceRequiresAdditionalCode === 'J' || needsAdditionalCode(targetItem.oldCode || targetItem.newCode));
-          
-          if (needsAdditional) {
+           // Determine if Zusatzkennzeichen applies based on the context (forward/backward)
+           // Note: The original item holds the flags like targetRequiresAdditionalCode / sourceRequiresAdditionalCode
+           const needsAdditional = isTargetContext
+             ? item.targetRequiresAdditionalCode === 'J'
+             : item.sourceRequiresAdditionalCode === 'J' || needsAdditionalCode(targetItem.oldCode || targetItem.newCode);
+
+           if (needsAdditional) {
             tooltip += "\nErfordert Zusatzkennzeichen";
           }
         }
       }
-      
       return tooltip;
     };
     
     return (
       <Box sx={{ pl: 4, pt: 1, mb: 2 }}>
-        {item.migrationTarget && (
+        {/* Forward Migration Block (Original Transition: Source -> Target) */}
+        {showForwardBlock && forwardMigrationTarget && (
           <Box sx={{ mb: 1 }}>
-            <Typography variant="subtitle2" gutterBottom>Umsteiger-Information:</Typography>
+            <Typography variant="subtitle2" gutterBottom>
+              {/* Adjust title based on comparison direction */}
+              {isReverseComparison ? `Umsteiger-Info (${newYear} → ${oldYear})` : `Umsteiger-Info (${oldYear} → ${newYear})`}
+            </Typography>
             <Box sx={{ display: 'flex', alignItems: 'center' }}>
               <ArrowForwardIcon fontSize="small" color="primary" sx={{ mr: 1 }} />
               <Typography variant="body2" component="div">
-                Dieser Code wurde ersetzt durch: 
+                {/* Adjust descriptive text based on comparison direction */}
+                {isReverseComparison
+                  ? `Code wurde im Folgejahr (${oldYear}) ersetzt durch:`
+                  : `Code wurde ersetzt durch:`
+                }
                 <Chip
-                  label={item.migrationTarget}
+                  label={forwardMigrationTarget}
                   size="small"
-                  sx={{ 
-                    ml: 1, 
-                    '&:hover': { 
-                      backgroundColor: 'rgba(0, 0, 0, 0.08)',
-                      cursor: 'help'
-                    } 
-                  }}
-                  title={getCodeTooltip(item.migrationTarget, true)}
+                  sx={{ ml: 1, '&:hover': { backgroundColor: 'rgba(0, 0, 0, 0.08)', cursor: 'help' } }}
+                  title={getCodeTooltip(forwardMigrationTarget, true)} // Use true for target context
                 />
-                
-                {/* Zusatzkennzeichen-Badge für OPS */}
+                {/* Zusatzkennzeichen Badge (OPS) */}
                 {catalogType === 'ops' && item.targetRequiresAdditionalCode === 'J' && (
                   <Chip 
                     label="Zusatzkennzeichen erforderlich" 
@@ -724,10 +741,9 @@ export default function CatalogDiffTree({
                     sx={{ ml: 1, fontSize: '0.7rem' }}
                   />
                 )}
-                
-                {/* Überleitbarkeits-Badge für vorwärts (von alt nach neu) */}
+                {/* Überleitbarkeit Vorwärts Badge */}
                 {(typeof item.autoForward !== 'undefined' || catalogType === 'ops') && (
-                  <Chip 
+                   <Chip 
                     label={
                       catalogType === 'ops'
                         ? (item.forwardAutomaticMapping === 'A' ? "Automatisch überleitbar" : "Manuell überleiten")
@@ -750,33 +766,41 @@ export default function CatalogDiffTree({
             </Box>
           </Box>
         )}
-        
-        {item.migrationSource && Array.isArray(item.migrationSource) && item.migrationSource.length > 0 && (
-          <Box>
-            <Typography variant="subtitle2" gutterBottom>Umsteiger-Information:</Typography>
+
+        {/* Backward Migration Block (Original Transition: Target <- Source) */}
+        {showBackwardBlock && backwardMigrationSource && Array.isArray(backwardMigrationSource) && backwardMigrationSource.length > 0 && (
+          // Add margin top if the forward block is also shown
+          <Box sx={{ mt: showForwardBlock && forwardMigrationTarget ? 2 : 0 }}> 
+            <Typography variant="subtitle2" gutterBottom>
+              {/* Adjust title based on comparison direction */}
+              {isReverseComparison ? `Umsteiger-Info (${newYear} → ${oldYear})` : `Umsteiger-Info (${oldYear} → ${newYear})`}
+            </Typography>
             <Box sx={{ display: 'flex', alignItems: 'center' }}>
               <ArrowBackIcon fontSize="small" color="primary" sx={{ mr: 1 }} />
               <Typography variant="body2" component="div">
-                Dieser Code ersetzt:
+                {/* Adjust descriptive text based on comparison direction */}
+                {isReverseComparison
+                  ? `Code ersetzt:`
+                  : `Dieser Code ersetzt folgenden Code aus dem Vorjahr (${oldYear}):`
+                }
                 <Box component="span">
-                  {item.migrationSource.map((source, index) => (
+                  {backwardMigrationSource.map((source, index) => (
                     <Chip
                       key={source}
                       label={source}
                       size="small"
                       sx={{ 
                         ml: 1,
-                        mr: index < item.migrationSource.length - 1 ? 0.5 : 0,
+                        mr: index < backwardMigrationSource.length - 1 ? 0.5 : 0,
                         '&:hover': { 
                           backgroundColor: 'rgba(0, 0, 0, 0.08)',
                           cursor: 'help'
                         } 
                       }}
-                      title={getCodeTooltip(source, false)}
+                      title={getCodeTooltip(source, false)} // Use false for source context
                     />
                   ))}
-                  
-                  {/* Zusatzkennzeichen-Badge für OPS */}
+                  {/* Zusatzkennzeichen Badge (OPS) */}
                   {catalogType === 'ops' && item.sourceRequiresAdditionalCode === 'J' && (
                     <Chip 
                       label="Zusatzkennzeichen erforderlich" 
@@ -785,8 +809,7 @@ export default function CatalogDiffTree({
                       sx={{ ml: 1, fontSize: '0.7rem' }}
                     />
                   )}
-                  
-                  {/* Überleitbarkeits-Badge für rückwärts (von neu nach alt) */}
+                  {/* Überleitbarkeit Rückwärts Badge */}
                   {(typeof item.autoBackward !== 'undefined' || catalogType === 'ops') && (
                     <Chip 
                       label={
@@ -831,6 +854,9 @@ export default function CatalogDiffTree({
 
   // Sub-Status Chip rendern mit spezifischerem Label
   const renderSubStatusChip = (item) => {
+    // Nur anzeigen, wenn die Jahre aufeinanderfolgen
+    if (!areConsecutiveYears) return null;
+    
     const { status, subStatus } = item;
     
     if (!subStatus) return null;
