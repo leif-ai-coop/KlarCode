@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { searchICDCodes, searchOPSCodes, getCurrentYear, loadICDData, loadOPSData } from '../services/dataService';
 import { parseUserInput, analyzeCodeTypes } from '../utils/search';
 
@@ -31,6 +31,7 @@ const useCodeSearch = () => {
     ifsgInfo: false,
   });
   const [searchType, setSearchType] = useState('ops'); // Default to 'ops'
+  const isInitialMount = useRef(true); // Ref to track initial mount
   
   // Initialize data loading
   useEffect(() => {
@@ -130,6 +131,21 @@ const useCodeSearch = () => {
   const handleYearChange = useCallback((year) => {
     setSelectedYear(year);
   }, []);
+  
+  // Effect to trigger search when selectedYear changes (after initial mount)
+  useEffect(() => {
+    // Skip the effect run on initial mount
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+
+    // If search input is not empty, trigger search with the new year
+    if (searchInput.trim()) {
+      console.log(`useEffect: Triggering search due to year change to ${selectedYear}`);
+      handleSearch(); // Uses the updated selectedYear from state
+    }
+  }, [selectedYear, searchInput, handleSearch]); // Dependencies
   
   /**
    * Toggle showing additional info columns
